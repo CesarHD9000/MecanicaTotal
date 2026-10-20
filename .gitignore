@@ -1,0 +1,51 @@
+# ============================================================================
+# Mecánica Total — .gitignore
+# El repositorio publica SOLO el sitio (public/). Todo lo operativo queda local.
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Credenciales y entorno — NUNCA al repositorio
+# ----------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+public/js/env.js
+
+# ----------------------------------------------------------------------------
+# Documentación interna y SQL de la base de datos
+# ----------------------------------------------------------------------------
+# Contiene el esquema de la BD, las políticas RLS, la auditoría de seguridad y
+# las instrucciones de operación. No debe publicarse.
+# ⚠️ Vive solo en tu máquina: mantené una copia de respaldo privada.
+docs/
+
+# ----------------------------------------------------------------------------
+# Backups y archivos temporales
+# ----------------------------------------------------------------------------
+*.bak
+*.tmp
+*.log
+_backup*/
+_old/
+
+# ----------------------------------------------------------------------------
+# Dependencias y artefactos de despliegue
+# ----------------------------------------------------------------------------
+node_modules/
+.wrangler/
+.vercel/
+.netlify/
+
+# ----------------------------------------------------------------------------
+# Sistema operativo e IDEs
+# ----------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# ----------------------------------------------------------------------------
+# Notas internas de trabajo
+# ----------------------------------------------------------------------------
+.workbuddy-ai/

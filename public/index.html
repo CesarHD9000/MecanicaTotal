@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mecánica Total — Aprende Mecánica Automotriz desde Cero</title>
+<meta name="description" content="Plataforma educativa gratuita de Mecánica Automotriz y Maquinaria Pesada, organizada por niveles, con cuestionarios interactivos.">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<link rel="canonical" href="https://mecanicatotal.cl/">
+
+<!-- Favicon -->
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+
+<!-- Open Graph / redes sociales (reemplaza el dominio por el real al publicar) -->
+<meta property="og:site_name" content="Mecánica Total">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="es_AR">
+<meta property="og:title" content="Mecánica Total — Aprende Mecánica Automotriz desde Cero">
+<meta property="og:description" content="Plataforma educativa gratuita de Mecánica Automotriz y Maquinaria Pesada, organizada por niveles, con cuestionarios interactivos.">
+<meta property="og:url" content="https://mecanicatotal.cl/">
+<meta property="og:image" content="https://mecanicatotal.cl/img/og-cover.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Mecánica Total — educación automotriz gratuita">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Mecánica Total — Aprende Mecánica Automotriz desde Cero">
+<meta name="twitter:description" content="Plataforma educativa gratuita de Mecánica Automotriz, organizada por niveles, con cuestionarios interactivos.">
+<meta name="twitter:image" content="https://mecanicatotal.cl/img/og-cover.jpg">
+<meta name="theme-color" content="#1E3A5F">
+
+<!-- Tipografía: Plus Jakarta Sans (titulares) + Inter (cuerpo) + JetBrains Mono -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<!-- Font Awesome 6 (Iconos profesionales) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+<!-- Estilos: base compartida + hoja exclusiva de esta página -->
+<link rel="stylesheet" href="css/base/_tokens.css">
+<link rel="stylesheet" href="css/base/_reset.css">
+<link rel="stylesheet" href="css/base/_layout.css">
+<link rel="stylesheet" href="css/base/_responsive.css">
+<link rel="stylesheet" href="css/pages/index.css">
+</head>
+<body>
+
+<!-- =========================================================
+     NAVBAR
+     ========================================================= -->
+<header class="navbar" data-navbar>
+  <div class="container">
+    <a href="#inicio" class="brand">
+      <span class="brand-mark" data-icon="logo"></span>
+      <span>Mecánica Total<small>Educación automotriz</small></span>
+    </a>
+    <nav class="nav-links" aria-label="Navegación principal">
+      <a href="#inicio">Inicio</a>
+      <a href="#nosotros">Nosotros</a>
+      <a href="#cursos">Cursos</a>
+      <a href="#contacto">Contacto</a>
+      <a href="cursos.html" class="btn btn--ghost btn--sm">Comenzar a aprender</a>
+      <a href="admin.html" class="Login">
+        <span class="fa-regular fa-circle-user"></span>
+      </a>
+
+    </nav>
+    <button class="nav-toggle" aria-label="Abrir menú" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</header>
+
+<main>
+  <!-- =========================================================
+       HERO
+       ========================================================= -->
+  <section class="hero" id="inicio">
+    <div class="container">
+      <div class="hero-copy">
+        <p class="eyebrow"> PLATAFORMA EDUCATIVA GRATUITA</p>
+        <h1>APRENDE <span class="hero-highlight">MECÁNICA</span> AUTOMOTRIZ DESDE CERO</h1>
+        <p>Comprende cómo funciona un vehículo, aprende sus principales sistemas y descubre los fundamentos del diagnóstico automotriz mediante OBD-II.</p>
+        <div class="hero-actions">
+          <a href="cursos.html" class="btn btn--hero">COMENZAR A APRENDER</a>
+          <a href="#nosotros" class="btn btn--hero-secondary">CONOCER LA PLATAFORMA</a>
+        </div>
+      </div>
+
+      <div class="hero-visual">
+        <div class="hero-preview-card">
+          <div class="preview-header">
+            <span class="preview-title"><i class="fa-solid fa-layer-group"></i> LO QUE ENCONTRARÁS</span>
+            <span class="preview-badge"><span class="badge-dot"></span> Acceso Libre</span>
+          </div>
+
+          <div class="preview-content">
+            <div class="preview-item">
+              <div class="preview-icon icon--primary">
+                <i class="fa-solid fa-gear"></i>
+              </div>
+              <div class="preview-info">
+                <h5>FUNDAMENTOS</h5>
+                <p>Comprende cómo funciona un vehículo y sus herramientas esenciales.</p>
+              </div>
+            </div>
+
+            <div class="preview-item">
+              <div class="preview-icon icon--accent">
+                <i class="fa-solid fa-car-side"></i>
+              </div>
+              <div class="preview-info">
+                <h5>SISTEMAS DEL VEHÍCULO</h5>
+                <p>Conoce sus principales componentes, motor, frenos y electricidad.</p>
+              </div>
+            </div>
+
+            <div class="preview-item">
+              <div class="preview-icon icon--secondary">
+                <i class="fa-solid fa-microchip"></i>
+              </div>
+              <div class="preview-info">
+                <h5>DIAGNÓSTICO</h5>
+                <p>Descubre los fundamentos del diagnóstico automotriz e interpretación OBD-II.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="preview-footer">
+            <i class="fa-solid fa-circle-check"></i> Guías Visuales + Práctica en Video + Evaluaciones
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="hero-scroll"><span>Descubre más</span><span class="chevron"></span></div>
+  </section>
+
+  <!-- =========================================================
+       NOSOTROS
+       ========================================================= -->
+  <section class="section" id="nosotros">
+    <div class="container">
+      <div class="about-lead reveal">
+        <div class="about-copy">
+          <p class="eyebrow"> NOSOTROS</p>
+          <h2 class="about-title">EDUCACIÓN TÉCNICA SIN BARRERAS</h2>
+          <p class="about-intro-text">Mecánica Total nace de una idea simple: el conocimiento técnico debería estar al alcance de todos. Creamos una plataforma educativa gratuita para acercar la mecánica automotriz a quienes quieren comprender cómo funciona un vehículo, aprender a mantenerlo y dar sus primeros pasos en el mundo de la mecánica.</p>
+        </div>
+
+        <div class="about-why-card reveal">
+          <div class="why-card-header">
+            <div class="why-icon"><i class="fa-solid fa-shield-halved"></i></div>
+            <h4>¿POR QUÉ MECÁNICA TOTAL?</h4>
+          </div>
+          <p class="why-lead-text">Hacemos que aprender mecánica sea más accesible, claro y progresivo.</p>
+          <ul class="why-benefits-list">
+            <li><i class="fa-solid fa-circle-check"></i> <span>Contenido técnico explicado de forma sencilla.</span></li>
+            <li><i class="fa-solid fa-circle-check"></i> <span>Aprendizaje orientado a la práctica.</span></li>
+            <li><i class="fa-solid fa-circle-check"></i> <span>Acceso libre para comenzar desde cero.</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="about-grid">
+        <article class="about-card reveal">
+          <div class="icon"><i class="fa-solid fa-users"></i></div>
+          <h3>Quiénes somos</h3>
+          <p>Mecánica Total es un proyecto educativo enfocado en acercar el conocimiento técnico de la mecánica a cualquier persona que quiera aprender.</p>
+        </article>
+
+        <article class="about-card reveal">
+          <div class="icon"><i class="fa-solid fa-bullseye"></i></div>
+          <h3>Misión</h3>
+          <p>Democratizar el acceso al conocimiento de la mecánica automotriz mediante contenido gratuito, práctico y progresivo.</p>
+        </article>
+
+        <article class="about-card reveal">
+          <div class="icon"><i class="fa-solid fa-eye"></i></div>
+          <h3>Visión</h3>
+          <p>Convertirnos en una plataforma de referencia para el aprendizaje abierto de la mecánica automotriz y ampliar progresivamente nuestro contenido hacia otras áreas técnicas.</p>
+        </article>
+
+        <article class="about-card reveal">
+          <div class="icon"><i class="fa-solid fa-flag"></i></div>
+          <h3>Objetivos</h3>
+          <p>Crear contenido claro y útil, acompañado de herramientas que permitan al estudiante comprobar y fortalecer lo aprendido.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       RUTA DE APRENDIZAJE — Metodología de Aprendizaje Progresiva
+       ========================================================= -->
+  <section class="section section--alt" id="cursos">
+    <div class="container">
+      <div class="section-head section-head--wide reveal text-center mx-auto">
+        <p class="eyebrow"> METODOLOGÍA DE APRENDIZAJE</p>
+        <h2>APRENDE PASO A PASO</h2>
+        <p>Una metodología progresiva para comprender, observar, aplicar y comprobar tus conocimientos de mecánica automotriz.</p>
+        <div class="methodology-note">
+          <i class="fa-solid fa-rotate-right"></i>
+          <span>Cada día de formación sigue este mismo ciclo de aprendizaje.</span>
+        </div>
+      </div>
+
+      <!-- RECORRIDO VISUAL DE 4 ETAPAS -->
+      <div class="learning-path-wrapper reveal">
+        <!-- Track conector visual en desktop -->
+        <div class="learning-track-line" aria-hidden="true">
+          <div class="track-node node--1"><span>01</span></div>
+          <div class="track-line"></div>
+          <div class="track-node node--2"><span>02</span></div>
+          <div class="track-line"></div>
+          <div class="track-node node--3"><span>03</span></div>
+          <div class="track-line"></div>
+          <div class="track-node node--4"><span>04</span></div>
+        </div>
+
+        <div class="learning-path-grid">
+          <!-- ETAPA 01 -->
+          <div class="stage-step-card reveal">
+            <div class="step-num-badge">01 — COMPRENDE</div>
+            <div class="step-icon-wrap">
+              <i class="fa-solid fa-book-open"></i>
+            </div>
+            <h3>Teoría y Fundamentos</h3>
+            <p>Aprende los conceptos esenciales de cada tema antes de llevarlos a la práctica.</p>
+            <ul class="step-features-list">
+              <li><i class="fa-solid fa-circle-check"></i> <span>Conceptos técnicos</span></li>
+              <li><i class="fa-solid fa-circle-check"></i> <span>Componentes y sistemas</span></li>
+              <li><i class="fa-solid fa-circle-check"></i> <span>Procedimientos básicos</span></li>
+            </ul>
+          </div>
+
+          <!-- ETAPA 02 -->
+          <div class="stage-step-card reveal">
+            <div class="step-num-badge">02 — OBSERVA</div>
+            <div class="step-icon-wrap">
+              <i class="fa-solid fa-eye"></i>
+            </div>
+            <h3>Guía Visual</h3>
+            <p>Identifica componentes y comprende su función mediante material visual interactivo.</p>
+            <ul class="step-features-list">
+              <li><i class="fa-solid fa-circle-check"></i> <span>Imágenes técnicas</span></li>
+              <li><i class="fa-solid fa-circle-check"></i> <span>Componentes identificados</span></li>
+              <li><i class="fa-solid fa-circle-check"></i> <span>Diagramas explicativos</span></li>
+            </ul>
+          </div>
+
+          <!-- ETAPA 03 -->
+          <div class="stage-step-card reveal">
+            <div class="step-num-badge">03 — APLICA</div>
+            <div class="step-icon-wrap">
+              <i class="fa-solid fa-play"></i>
+            </div>
+            <h3>Video Demostrativo</h3>
+            <p>Observa procedimientos reales y descubre cómo se aplican los conocimientos aprendidos.</p>
+            <ul class="step-features-list">
+              <li><i class="fa-solid fa-circle-check"></i> <span>Demostraciones paso a paso</span></li>
+              <li><i class="fa-solid fa-circle-check"></i> <span>Procedimientos técnicos</span></li>
+              <li><i class="fa-solid fa-circle-check"></i> <span>Aplicación práctica</span></li>
+            </ul>
+          </div>
+
+          <!-- ETAPA 04 -->
+          <div class="stage-step-card reveal">
+            <div class="step-num-badge">04 — COMPRUEBA</div>
+            <div class="step-icon-wrap">
+              <i class="fa-solid fa-clipboard-check"></i>
+            </div>
+            <h3>Evaluación</h3>
+            <p>Pon a prueba lo aprendido y recibe retroalimentación sobre tus conocimientos.</p>
+            <ul class="step-features-list">
+              <li><i class="fa-solid fa-circle-check"></i> <span>Corrección inmediata</span></li>
+              <li><i class="fa-solid fa-circle-check"></i> <span>Retroalimentación</span></li>
+              <li><i class="fa-solid fa-circle-check"></i> <span>Seguimiento del progreso</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- BLOQUE DE CIERRE: EVALUACIÓN FINAL -->
+      <div class="final-eval-banner reveal">
+        <div class="final-eval-icon">
+          <i class="fa-solid fa-flag-checkered"></i>
+        </div>
+        <div class="final-eval-info">
+          <span class="eyebrow-accent">— EVALUACIÓN FINAL</span>
+          <h3>COMPRUEBA TODO LO QUE HAS APRENDIDO</h3>
+          <p>Al completar tu recorrido de aprendizaje, podrás realizar una evaluación global para poner a prueba tus conocimientos y conocer cuánto has avanzado.</p>
+          <span class="eval-motto">Completa el recorrido y descubre cuánto has aprendido.</span>
+        </div>
+        <div class="final-eval-action">
+          <a href="cursos.html" class="btn btn--hero">
+            <span>COMENZAR A APRENDER</span>
+            <i class="fa-solid fa-arrow-right"></i>
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- =========================================================
+       CONTACTO
+       ========================================================= -->
+  <section class="section" id="contacto">
+  <div class="container">
+    <div class="contact-grid-info reveal">
+
+      <!-- Columna izquierda: contacto -->
+      <div class="contact-info-card">
+        <p class="eyebrow"> HABLEMOS</p>
+
+        <h3>¿Tienes una duda o una idea?</h3>
+
+        <p>
+          Mecánica Total es un proyecto educativo en constante construcción.
+          Si tienes una pregunta, encuentras un error o quieres sugerir un tema
+          para aprender, nos gustaría escucharte.
+        </p>
+        
+        <p class="eyebrow"> ESCRÍBENOS </p>
+          
+
+        <div class="contact-line">
+          <i class="fa-solid fa-envelope icon-accent"></i>
+          <a href="mailto:contacto@mecanicatotal.cl">
+            contacto@mecanicatotal.cl
+          </a>
+        </div>
+
+        <div class="contact-line">
+          <i class="fa-solid fa-clock icon-accent"></i>
+          <span>
+            Respondemos durante la semana, según la disponibilidad del equipo.
+          </span>
+        </div>
+
+        <div class="contact-line">
+          <i class="fa-solid fa-comments icon-accent"></i>
+          <span>
+            Tus preguntas y sugerencias nos ayudan a mejorar el proyecto.
+          </span>
+        </div>
+
+        <ul class="contact-promise">
+          <li><i class="fa-solid fa-circle-check icon-accent"></i> <span>Acceso libre al contenido educativo.</span></li>
+          <li><i class="fa-solid fa-circle-check icon-accent"></i> <span>Sin necesidad de crear una cuenta para comenzar.</span></li>
+          <li><i class="fa-solid fa-circle-check icon-accent"></i> <span>Aprende paso a paso y avanza a tu propio ritmo.</span></li>
+        </ul>
+      </div>
+
+      <!-- Columna derecha: formulario de contacto -->
+      <div class="contact-form-card">
+        <div class="privacy-icon">
+          <i class="fa-solid fa-graduation-cap"></i>
+        </div>
+
+        <h4>APRENDER DEBERÍA SER SIMPLE</h4>
+
+        <p>Cuéntanos tu duda, el error que encontraste o el tema que te gustaría aprender. Leemos todos los mensajes.</p>
+
+        <form class="contact-form" data-contact-form novalidate>
+          <div class="cf-field">
+            <label for="cf-name">Nombre</label>
+            <input type="text" id="cf-name" name="name" required minlength="2" maxlength="150"
+                   autocomplete="name" placeholder="Tu nombre">
+          </div>
+
+          <div class="cf-field">
+            <label for="cf-email">Correo electrónico</label>
+            <input type="email" id="cf-email" name="email" required maxlength="255"
+                   autocomplete="email" placeholder="tucorreo@ejemplo.com">
+          </div>
+
+          <div class="cf-field">
+            <label for="cf-message">Mensaje</label>
+            <textarea id="cf-message" name="message" rows="5" required minlength="10" maxlength="5000"
+                      placeholder="Escribe aquí tu consulta o sugerencia..."></textarea>
+          </div>
+
+          <!-- Campo trampa anti-spam: invisible para personas, los bots lo rellenan -->
+          <div class="cf-hp" aria-hidden="true">
+            <label for="cf-website">No rellenar este campo</label>
+            <input type="text" id="cf-website" name="website" tabindex="-1" autocomplete="off">
+          </div>
+
+          <button type="submit" class="btn btn--primary btn--block">
+            <i class="fa-solid fa-paper-plane"></i> Enviar mensaje
+          </button>
+
+          <p class="cf-note" data-form-note role="status" aria-live="polite"></p>
+
+          <p class="cf-legal">
+            Al enviar el formulario aceptas nuestra
+            <a href="privacidad.html">política de privacidad</a>.
+          </p>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</section>
+</main>
+
+<!-- =========================================================
+     FOOTER
+     ========================================================= -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="#inicio" class="brand">
+          <span class="brand-mark" data-icon="logo"></span>
+          <span>Mecánica Total<small>Educación automotriz</small></span>
+        </a>
+        <p>Plataforma educativa gratuita para aprender mecánica automotriz de forma clara, progresiva y accesible.</p>
+        <!--
+          Redes sociales: se dejan desactivadas hasta tener los perfiles reales.
+          Publicar enlaces al home genérico de cada red confunde al visitante.
+          Al crear los perfiles, descomenta el bloque y pon las URLs reales.
+        <div class="social-links">
+          <a href="https://www.facebook.com/TU-PERFIL" target="_blank" rel="noopener noreferrer" aria-label="Facebook" data-social="facebook"></a>
+          <a href="https://www.instagram.com/TU-PERFIL" target="_blank" rel="noopener noreferrer" aria-label="Instagram" data-social="instagram"></a>
+          <a href="https://www.youtube.com/@TU-CANAL" target="_blank" rel="noopener noreferrer" aria-label="YouTube" data-social="youtube"></a>
+          <a href="https://www.tiktok.com/@TU-PERFIL" target="_blank" rel="noopener noreferrer" aria-label="TikTok" data-social="tiktok"></a>
+        </div>
+        -->
+      </div>
+
+      <div>
+        <h4>EXPLORA</h4>
+        <ul>
+          <li><a href="#inicio">Inicio</a></li>
+          <li><a href="#nosotros">Nosotros</a></li>
+          <li><a href="#cursos">Ruta de aprendizaje</a></li>
+          <li><a href="cursos.html">Cursos</a></li>
+          <li><a href="#contacto">Contacto</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4>APRENDIZAJE</h4>
+        <ul>
+          <li><a href="cursos.html">Cursos</a></li>
+          <li><a href="cursos.html">Evaluaciones</a></li>
+          <li><a href="#contacto">Preguntas frecuentes</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4>INFORMACIÓN</h4>
+        <ul>
+          <li><a href="privacidad.html">Política de privacidad</a></li>
+          <li><a href="terminos.html">Términos y condiciones</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <p class="footer-motto">"El conocimiento técnico debería estar al alcance de todos."</p>
+      <span class="footer-copy">© 2026 Mecánica Total · Proyecto educativo</span>
+    </div>
+  </div>
+</footer>
+
+<!-- =========================================================
+     COMPONENTES FLOTANTES
+     ========================================================= -->
+<div class="lightbox" data-lightbox-root>
+  <button class="lightbox-close" data-lightbox-close aria-label="Cerrar imagen"></button>
+  <div class="lightbox-content">
+    <div class="lightbox-media" data-lightbox-media></div>
+    <p class="lightbox-caption" data-lightbox-caption></p>
+  </div>
+</div>
+
+<button class="back-to-top" data-back-to-top aria-label="Volver arriba"></button>
+
+<!-- SCRIPTS
+     · Versión exacta + Subresource Integrity: si el CDN entrega otro código,
+       el navegador lo rechaza.
+     · env.js contiene las credenciales locales y está fuera del repositorio. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"
+        integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK"
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="js/env.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/supabaseConfig.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/boot.js"></script>
+<script src="js/dbService.js"></script>
+<script src="js/richText.js"></script>
+<script src="js/script.js"></script>
+</body>
+</html>

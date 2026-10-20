@@ -1,0 +1,42 @@
+/* ==========================================================================
+   MECÁNICA TOTAL — TEXTO ENRIQUECIDO (.rt-*)
+   Estilos compartidos por la vista pública (cursos) y la vista previa del
+   panel de administración. El HTML lo genera js/richText.js a partir del
+   texto plano guardado en la base de datos.
+   ========================================================================== */
+
+/* Subtítulo interno (## en el editor) */
+.rt-h{
+  font-family:var(--f-display); font-size:0.8rem; font-weight:800;
+  text-transform:uppercase; letter-spacing:0.07em; color:var(--c-primary);
+  margin:1.4rem 0 0.55rem; line-height:1.3;
+}
+.rt-h:first-child{ margin-top:0; }
+
+/* Listas (guion, viñeta o numeración) */
+.rt-list{
+  margin:0.6rem 0 0.9rem; padding-left:1.25rem;
+  display:flex; flex-direction:column; gap:0.35rem;
+}
+.rt-list li{ font-size:0.94rem; line-height:1.65; }
+.rt-list li::marker{ color:var(--c-accent); font-weight:700; }
+
+/* Nota destacada (> en el editor) */
+.rt-note{
+  background:#FFF6E8; border-left:4px solid var(--c-accent);
+  border-radius:0 var(--radius-s) var(--radius-s) 0;
+  padding:0.8rem 1.05rem; margin:0.9rem 0;
+  font-size:0.92rem; line-height:1.65; color:var(--c-text);
+}
+.rt-note::before{
+  content:'NOTA'; display:block;
+  font-family:var(--f-mono); font-size:0.62rem; font-weight:700;
+  letter-spacing:0.1em; color:var(--c-accent-dark); margin-bottom:0.25rem;
+}
+
+/* Separador y código en línea */
+.rt-hr{ border:none; height:1px; background:var(--c-border); margin:1.25rem 0; }
+.rt-code{
+  font-family:var(--f-mono); font-size:0.85em; background:var(--c-surface);
+  border:1px solid var(--c-border); border-radius:4px; padding:0.1em 0.35em;
+}

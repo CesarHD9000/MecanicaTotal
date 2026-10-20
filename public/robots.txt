@@ -1,0 +1,15 @@
+# ============================================================================
+# robots.txt — Mecánica Total
+# ----------------------------------------------------------------------------
+# MODO PRUEBA: mientras el sitio no esté listo para el público, cambia
+# `Allow: /` por `Disallow: /` para que ningún buscador lo indexe.
+# Al lanzar, vuelve a dejar `Allow: /`.
+# ============================================================================
+
+User-agent: *
+Allow: /
+
+Disallow: /admin.html
+Disallow: /js/env.js
+
+Sitemap: https://mecanicatotal.cl/sitemap.xml

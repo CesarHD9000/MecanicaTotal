@@ -1,0 +1,23 @@
+// ============================================================================
+// wrangler.jsonc — Cloudflare Workers (static assets)
+// ----------------------------------------------------------------------------
+// Despliega el sitio estático de public/ sin código de servidor.
+// Las cabeceras de seguridad se aplican desde public/_headers.
+//
+// Desde la CLI:
+//   npm run build          (genera public/js/env.js)
+//   npx wrangler deploy
+//
+// Con Workers Builds (Git):
+//   Build command:  node scripts/build-env.mjs
+//   Deploy command: npx wrangler deploy
+//   Variables:      SUPABASE_URL, SUPABASE_ANON_KEY
+// ============================================================================
+
+{
+  "name": "mecanica-total",
+  "compatibility_date": "2026-10-20",
+  "assets": {
+    "directory": "./public"
+  }
+}

@@ -1,0 +1,48 @@
+/* ==========================================================================
+   MECÁNICA TOTAL — 03. RESPONSIVE COMPARTIDO
+   Puntos de quiebre que afectan a componentes de base (navbar, footer,
+   layout general). Los ajustes responsive de cada página viven en su
+   propio archivo, no aquí.
+
+   Escala de breakpoints del proyecto (única, no inventar otras):
+     --bp-lg : 1024px
+     --bp-md : 992px
+     --bp-sm : 768px
+     --bp-xs : 480px
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   ≤ 1024px
+   -------------------------------------------------------------------------- */
+@media (max-width:1024px){
+  .footer-grid{ grid-template-columns:1fr 1fr; }
+}
+
+/* --------------------------------------------------------------------------
+   ≤ 992px
+   -------------------------------------------------------------------------- */
+@media (max-width:992px){
+}
+
+/* --------------------------------------------------------------------------
+   ≤ 768px — menú lateral deslizante
+   -------------------------------------------------------------------------- */
+@media (max-width:768px){
+  .nav-links{
+    position:fixed; inset:0 0 0 auto; width:min(78vw,320px); height:100vh; flex-direction:column;
+    background:var(--c-primary-dark); padding:calc(var(--nav-h) + 24px) var(--space-3) var(--space-3);
+    align-items:flex-start; gap:var(--space-3); transform:translateX(100%); transition:transform .4s var(--ease);
+    box-shadow:-10px 0 40px rgba(0,0,0,.3);
+  }
+  .nav-links.is-open{ transform:translateX(0); }
+  .nav-links a{ font-size:1.1rem; width:100%; }
+  .nav-toggle{ display:flex; }
+  .footer-grid{ grid-template-columns:1fr; }
+}
+
+/* --------------------------------------------------------------------------
+   ≤ 480px
+   -------------------------------------------------------------------------- */
+@media (max-width:480px){
+  .section{ padding-block:var(--space-4); }
+}

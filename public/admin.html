@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel de Administración — Mecánica Total</title>
+<meta name="description" content="Panel de administración para la gestión de días de aprendizaje, teoría, guía visual de componentes y cuestionarios interactivos.">
+<!-- Panel privado: fuera de los índices de buscadores -->
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+
+<!-- Tipografía: Plus Jakarta Sans (titulares) + Inter (cuerpo) + JetBrains Mono -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<!-- Font Awesome 6 (Iconos profesionales) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+<!-- Estilos: base compartida + hoja exclusiva de esta página -->
+<link rel="stylesheet" href="css/base/_tokens.css">
+<link rel="stylesheet" href="css/base/_reset.css">
+<link rel="stylesheet" href="css/base/_layout.css">
+<link rel="stylesheet" href="css/base/_responsive.css">
+<link rel="stylesheet" href="css/base/_richtext.css">
+<link rel="stylesheet" href="css/pages/admin.css">
+</head>
+<body class="admin-body">
+
+<!-- PANTALLA DE ACCESO — autenticación real con Supabase Auth -->
+<div class="admin-login-overlay" id="adminLoginOverlay">
+  <div class="login-card">
+    <div class="login-card-header">
+      <div class="login-icon"><i class="fa-solid fa-lock"></i></div>
+      <h3>Acceso Restringido</h3>
+    </div>
+    <form id="adminLoginForm">
+      <div class="form-group">
+        <label for="loginUser">Correo del administrador</label>
+        <input type="email" id="loginUser" name="email" required autocomplete="username"
+               inputmode="email" spellcheck="false" placeholder="admin@tudominio.com">
+      </div>
+      <div class="form-group">
+        <label for="loginPass">Contraseña</label>
+        <input type="password" id="loginPass" name="password" required autocomplete="current-password">
+      </div>
+    
+
+      <div id="loginErrorMsg" class="login-error-msg" role="alert">
+        <i class="fa-solid fa-triangle-exclamation"></i> Credenciales incorrectas. Inténtalo de nuevo.
+      </div>
+      <button type="submit" class="btn btn--primary btn--block">
+        <i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- NAVBAR ADMIN -->
+<header class="navbar navbar--solid" data-navbar>
+  <div class="container">
+    <a href="index.html" class="brand">
+      <span class="brand-mark" data-icon="logo"></span>
+      <span>Mecánica Total<small>Panel de Administración</small></span>
+    </a>
+    <nav class="nav-links" aria-label="Navegación Admin">
+      <a href="cursos.html" target="_blank" rel="noopener noreferrer" class="btn btn--outline btn--sm">👁️ Ver Cursos (Estudiante)</a>
+      <button class="btn btn--primary btn--sm" id="btnNewDayNav"><i class="fa-solid fa-plus"></i> Nuevo Día</button>
+      <button class="btn btn--ghost btn--sm btn--ghost-light" id="btnLogoutAdmin"><i class="fa-solid fa-right-from-bracket"></i> Salir</button>
+    </nav>
+  </div>
+</header>
+
+<main class="page-offset--lg">
+  <div class="container">
+
+    <!-- ADMIN HEADER / METRICAS -->
+    <div class="admin-head">
+      <div>
+        <p class="eyebrow">Gestor de Contenidos por Días</p>
+        <h2>Panel de Control Educativo</h2>
+        <p>Crea, edita y gestiona las lecciones diarias: teoría con subsecciones, guía visual con imágenes y explicaciones inferiores, videos demostrativos y cuestionarios de evaluación.</p>
+      </div>
+      <div class="admin-actions">
+        <button class="btn btn--primary" id="btnNewDay"><i class="fa-solid fa-plus"></i> Nuevo Día</button>
+        <button class="btn btn--outline btn--accent-soft" id="btnManageFinalQuiz"><i class="fa-solid fa-trophy icon-accent"></i> Quiz Final del Curso</button>
+        <button class="btn btn--ghost btn--danger-ghost" id="btnResetData"><i class="fa-solid fa-rotate-left"></i> Sincronizar datos</button>
+      </div>
+    </div>
+
+    <!-- METRICAS DASHBOARD -->
+    <div class="admin-stats-grid">
+      <div class="stat-card">
+        <span class="stat-icon" data-icon="target"></span>
+        <div class="stat-info">
+          <strong id="statDays">1</strong>
+          <span>Días de Aprendizaje</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon" data-icon="engine"></span>
+        <div class="stat-info">
+          <strong id="statSubsections">3</strong>
+          <span>Subsecciones Teóricas</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon" data-icon="spark"></span>
+        <div class="stat-info">
+          <strong id="statGalleryItems">3</strong>
+          <span>Imágenes de Galería</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon" data-icon="obd"></span>
+        <div class="stat-info">
+          <strong id="statQuizzes">4</strong>
+          <span>Preguntas por Día</span>
+        </div>
+      </div>
+      <div class="stat-card stat-card--accent" id="cardFinalQuiz">
+        <span class="stat-icon stat-icon--accent"><i class="fa-solid fa-trophy"></i></span>
+        <div class="stat-info">
+          <strong id="statFinalQuizCount">5</strong>
+          <span>Preguntas Quiz Final</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOOLBAR BUSQUEDA -->
+    <div class="admin-toolbar">
+      <div class="search-box search-box--grow">
+        <input type="text" id="adminSearch" placeholder="Buscar por número de día, título o descripción...">
+      </div>
+    </div>
+
+    <!-- LISTADO / TABLA DE DIAS -->
+    <div class="admin-table-container">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Día #</th>
+            <th>Icono</th>
+            <th>Título de la Lección</th>
+            <th>Subsecciones Teoría</th>
+            <th>Galería Visual</th>
+            <th>Cuestionario</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="adminDaysTableBody">
+          <!-- Renderizado dinámico por JS -->
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</main>
+
+<!-- MODAL: CREAR / EDITAR DIA -->
+<div class="admin-modal" id="dayModal">
+  <div class="admin-modal-content admin-modal-content--editor" role="dialog" aria-modal="true" aria-labelledby="dayModalTitle" tabindex="-1">
+    <header class="editor-head">
+      <div class="editor-head-main">
+        <h3 class="editor-title" id="dayModalTitle">Crear Nuevo Día / Lección</h3>
+        <p class="editor-subtitle" id="dayModalSubtitle">Completa los datos del módulo y su contenido educativo.</p>
+      </div>
+      <div class="editor-head-side">
+        <span class="editor-dirty" id="dayDirtyBadge" role="status">
+          <i class="fa-solid fa-circle" aria-hidden="true"></i> Cambios sin guardar
+        </span>
+        <button type="button" class="modal-close-btn" id="closeDayModal" aria-label="Cerrar editor">&times;</button>
+      </div>
+    </header>
+
+    <form id="dayForm" class="editor-form">
+      <div class="editor-body">
+
+        <!-- 01 · DATOS GENERALES -->
+        <section class="editor-section">
+          <div class="editor-section-head">
+            <span class="editor-section-num">01</span>
+            <h4 class="editor-section-title">Datos generales</h4>
+            <span class="editor-section-hint">Identificación del módulo</span>
+          </div>
+
+          <div class="form-row-3">
+            <div class="form-group">
+              <label for="dayNumber">Número de Día *</label>
+              <input type="number" id="dayNumber" min="1" required placeholder="Ej: 1">
+            </div>
+            <div class="form-group form-group--span-2">
+              <label for="dayTitle">Título de la Lección *</label>
+              <input type="text" id="dayTitle" required placeholder="Ej: Herramientas de Taller">
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label for="dayIcon">Icono Representativo *</label>
+              <select id="dayIcon" required>
+                <option value="tools">Herramientas (tools)</option>
+                <option value="engine">Motor (engine)</option>
+                <option value="fluids">Fluidos y Aceites (fluids)</option>
+                <option value="brake">Sistema de Frenos (brake)</option>
+                <option value="tire">Neumáticos y Ruedas (tire)</option>
+                <option value="spark">Encendido / Bujías (spark)</option>
+                <option value="electrical">Sistema Eléctrico (electrical)</option>
+                <option value="radiator">Refrigeración (radiator)</option>
+                <option value="obd">Diagnóstico OBD-II (obd)</option>
+                <option value="timing">Distribución (timing)</option>
+                <option value="injection">Inyección Electrónica (injection)</option>
+                <option value="transmission">Transmisión (transmission)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="dayShortDesc">Resumen Breve del Día *</label>
+              <input type="text" id="dayShortDesc" required placeholder="Resumen corto de la lección para el índice...">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="dayCoverUrl">Portada del Módulo (fotografía real)</label>
+            <div class="input-inline-row">
+              <input type="text" id="dayCoverUrl" placeholder="img/cursos/dia-1-herramientas.jpg o URL completa">
+              <input type="file" accept="image/*" id="dayCoverFile" class="file-input-hidden">
+              <button type="button" class="btn btn--outline btn--sm" id="btnUploadCover"><i class="fa-solid fa-upload"></i> Subir</button>
+            </div>
+            <small class="file-name-hint">Se muestra en la introducción del módulo. Si se deja vacío, se usa el esquema vectorial.</small>
+          </div>
+        </section>
+
+        <!-- 02 · OBJETIVO E INTRODUCCIÓN -->
+        <section class="editor-section">
+          <div class="editor-section-head">
+            <span class="editor-section-num">02</span>
+            <h4 class="editor-section-title">Objetivo e introducción</h4>
+            <span class="editor-section-hint">Texto de apertura del módulo</span>
+          </div>
+
+          <div class="form-group">
+            <label for="dayObjective"><i class="fa-solid fa-bullseye icon-accent"></i> Objetivo del Módulo *</label>
+            <textarea id="dayObjective" rows="3" required placeholder="Ej: Identificar, clasificar y utilizar correctamente las herramientas y equipos del taller..."></textarea>
+            <small class="file-name-hint">Se muestra destacado en la ficha principal de la lección para el estudiante.</small>
+          </div>
+
+          <div class="form-group">
+            <label for="dayIntroContent"><i class="fa-solid fa-compass icon-accent"></i> Introducción del Módulo *</label>
+            <textarea id="dayIntroContent" rows="6" required placeholder="Escribe aquí la introducción conceptual que sitúa al estudiante en contexto antes de iniciar las etapas prácticas..."></textarea>
+            <small class="file-name-hint">Cada salto de línea se muestra como un párrafo independiente.</small>
+          </div>
+        </section>
+
+        <!-- 03 · CONTENIDO TEÓRICO -->
+        <section class="editor-section">
+          <div class="editor-section-head">
+            <span class="editor-section-num">03</span>
+            <h4 class="editor-section-title">Contenido teórico</h4>
+            <span class="editor-section-hint">Etapa 1 · Teoría y subsecciones</span>
+          </div>
+
+          <div class="form-group">
+            <label for="theoryMainTitle">Título Principal de la Teoría *</label>
+            <input type="text" id="theoryMainTitle" required placeholder="Ej: Manual General de Herramientas Mecánicas y de Elevación">
+          </div>
+
+          <details class="rt-help">
+            <summary><i class="fa-solid fa-wand-magic-sparkles"></i> Formato de texto disponible en la teoría</summary>
+            <div class="rt-help-grid">
+              <div><code>## Título</code><span>Subtítulo interno</span></div>
+              <div><code>- texto</code><span>Lista con viñetas</span></div>
+              <div><code>1. texto</code><span>Lista numerada</span></div>
+              <div><code>&gt; texto</code><span>Nota destacada</span></div>
+              <div><code>**texto**</code><span>Negrita</span></div>
+              <div><code>*texto*</code><span>Cursiva</span></div>
+              <div><code>`texto`</code><span>Fragmento técnico</span></div>
+              <div><code>---</code><span>Separador</span></div>
+            </div>
+            <p class="rt-help-note">
+              Cada línea es un párrafo. Las viñetas <code>&#8226;</code> escritas a mano también se
+              convierten en lista automáticamente, así que tu contenido actual ya se ve mejor sin tocarlo.
+            </p>
+          </details>
+
+          <div class="sub-list-head">
+            <span class="sub-list-title">Subsecciones</span>
+            <span class="sub-count" id="subCount">0 subsecciones</span>
+          </div>
+          <div id="subsectionsContainer" class="dynamic-inputs-container sub-list">
+            <!-- Subsecciones dinámicas -->
+          </div>
+          <button type="button" class="editor-add-btn" id="btnAddSubsection">
+            <i class="fa-solid fa-plus" aria-hidden="true"></i> Agregar subsección
+          </button>
+        </section>
+
+        <!-- 04 · GALERÍA -->
+        <section class="editor-section">
+          <div class="editor-section-head">
+            <span class="editor-section-num">04</span>
+            <h4 class="editor-section-title">Guía visual</h4>
+            <span class="editor-section-hint">Etapa 2 · Galería de componentes</span>
+          </div>
+
+          <div class="form-group">
+            <label>Imágenes Ilustrativas con Explicación Inferior</label>
+            <div id="galleryContainer" class="dynamic-inputs-container">
+              <!-- Imágenes dinámicas -->
+            </div>
+            <button type="button" class="editor-add-btn" id="btnAddGalleryItem">
+              <i class="fa-solid fa-plus" aria-hidden="true"></i> Agregar imagen a la galería
+            </button>
+          </div>
+        </section>
+
+        <!-- 05 · VIDEO -->
+        <section class="editor-section">
+          <div class="editor-section-head">
+            <span class="editor-section-num">05</span>
+            <h4 class="editor-section-title">Video demostrativo</h4>
+            <span class="editor-section-hint">Etapa 3 · Material audiovisual</span>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label for="videoTitle">Título del Video *</label>
+              <input type="text" id="videoTitle" placeholder="Ej: Demostración Práctica del Uso de Herramientas">
+            </div>
+            <div class="form-group">
+              <label for="videoType">Tipo de Origen de Video *</label>
+              <select id="videoType">
+                <option value="url">Enlace URL (YouTube / Vimeo Embed)</option>
+                <option value="upload">Subir Archivo de Video Local (MP4 / WebM)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group" id="videoUrlGroup">
+            <label for="videoSrcUrl">URL de Incrustación (Embed Video URL)</label>
+            <input type="text" id="videoSrcUrl" placeholder="https://www.youtube.com/embed/dQw4w9WgXcQ">
+          </div>
+          <div class="form-group a11y-hidden" id="videoUploadGroup">
+            <label>Seleccionar Archivo de Video Local (MP4 / WebM)</label>
+            <input type="file" id="videoFileInput" accept="video/mp4,video/webm" class="file-input-hidden">
+            <div class="upload-row">
+              <button type="button" class="btn btn--outline btn--sm" id="btnUploadVideo">
+                <i class="fa-solid fa-upload"></i> Subir Archivo de Video
+              </button>
+              <small id="videoFileName" class="file-name-hint"></small>
+            </div>
+            <input type="hidden" id="videoDataUrl">
+          </div>
+        </section>
+
+      </div>
+
+      <footer class="admin-modal-footer editor-foot">
+        <button type="button" class="btn btn--ghost btn--ghost-dark" id="cancelDayModal">Cancelar</button>
+        <button type="submit" class="btn btn--primary"><i class="fa-solid fa-floppy-disk"></i> Guardar lección</button>
+      </footer>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL: GESTOR DE CUESTIONARIO (QUIZ BUILDER) -->
+<div class="admin-modal" id="quizModal">
+  <div class="admin-modal-content admin-modal-content--medium">
+    <div class="admin-modal-header">
+      <h3 id="quizModalTitle">Gestionar Cuestionario</h3>
+      <button class="modal-close-btn" id="closeQuizModal">&times;</button>
+    </div>
+    <div class="quiz-builder-body">
+      <div id="quizQuestionsList">
+        <!-- Preguntas dinámicas -->
+      </div>
+      <button type="button" class="btn btn--outline btn--sm btn--add-row-lg" id="btnAddQuizQuestion">
+        <i class="fa-solid fa-plus"></i> Agregar Nueva Pregunta
+      </button>
+    </div>
+    <div class="admin-modal-footer">
+      <button type="button" class="btn btn--ghost btn--ghost-dark" id="cancelQuizModal">Cancelar</button>
+      <button type="button" class="btn btn--primary" id="saveQuizBtn">Guardar Cuestionario</button>
+    </div>
+  </div>
+</div>
+
+<!-- SCRIPTS
+     · Versión exacta + Subresource Integrity: si el CDN entrega otro código,
+       el navegador lo rechaza.
+     · env.js contiene las credenciales locales y está fuera del repositorio. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"
+        integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK"
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="js/env.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/supabaseConfig.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/boot.js"></script>
+<script src="js/dbService.js"></script>
+<script src="js/richText.js"></script>
+<script src="js/script.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>

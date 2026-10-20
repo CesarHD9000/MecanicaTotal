@@ -1,0 +1,58 @@
+/* ==========================================================================
+   MECÁNICA TOTAL — 00. TOKENS DE DISEÑO
+   Única fuente de verdad para color, tipografía, espaciado, forma y tiempos.
+   Todo el sitio consume estas variables: cambiar un valor aquí lo cambia en
+   las tres páginas. Nada más debe declarar colores "sueltos".
+   ========================================================================== */
+
+:root{
+  /* --- Color -------------------------------------------------------------
+     Paleta "taller nocturno": azul acero, rojo freno, naranja torque. */
+  --c-primary:      #1E3A5F;   /* azul acero — marca / navbar */
+  --c-primary-dark: #0F2036;   /* azul profundo — hero, footer */
+  --c-primary-mid:  #16314F;
+  --c-secondary:    #D62828;   /* rojo freno — alertas / CTA secundario */
+  --c-accent:       #F77F00;   /* naranja torque — foco / aguja del medidor */
+  --c-accent-soft:  #FFE1B8;
+  --c-accent-dark:  #E07200;   /* naranja en estado hover */
+  --c-bg:           #F8F9FA;
+  --c-bg-alt:       #EFF2F5;
+  --c-surface:      #FFFFFF;
+  --c-border:       #E1E5EA;
+  --c-text:         #1B1F24;
+  --c-text-muted:   #5B6572;
+  --c-white:        #FFFFFF;
+  --c-success:      #2E7D32;
+  --c-danger:       #C62828;
+
+  /* Fondos oscuros específicos de componentes (footer, diagramas) */
+  --c-deep:         #0B1622;
+  --c-deep-2:       #0B192C;
+
+  /* --- Tipografía -------------------------------------------------------- */
+  --f-display: 'Plus Jakarta Sans', 'Poppins', system-ui, sans-serif;
+  --f-body:    'Inter', system-ui, -apple-system, sans-serif;
+  --f-mono:    'JetBrains Mono', 'Courier New', monospace;
+
+  /* --- Espaciado --------------------------------------------------------- */
+  --space-1: .5rem;
+  --space-2: 1rem;
+  --space-3: 1.5rem;
+  --space-4: 2.5rem;
+  --space-5: 4rem;
+  --space-6: 6rem;
+
+  /* --- Forma ------------------------------------------------------------- */
+  --radius-s: 4px;
+  --radius-m: 10px;
+  --radius-l: 18px;
+  --shadow-s: 0 2px 8px rgba(15,32,54,.08);
+  --shadow-m: 0 10px 30px rgba(15,32,54,.12);
+  --shadow-l: 0 20px 50px rgba(15,32,54,.22);
+
+  /* --- Movimiento -------------------------------------------------------- */
+  --ease: cubic-bezier(.4,0,.2,1);
+
+  /* --- Medidas de layout ------------------------------------------------ */
+  --nav-h: 76px;
+}

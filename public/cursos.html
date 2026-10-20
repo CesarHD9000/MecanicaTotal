@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plataforma de Cursos — Mecánica Total</title>
+<meta name="description" content="Aprende Mecánica Automotriz con nuestro esquema de lecciones interactivas. Árbol de navegación lateral con teoría, esquemas vectoriales ampliables y cuestionarios.">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<link rel="canonical" href="https://mecanicatotal.cl/cursos.html">
+
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+
+<meta property="og:type" content="website">
+<meta property="og:locale" content="es_AR">
+<meta property="og:title" content="Catálogo y Lecciones — Mecánica Total">
+<meta property="og:description" content="Lecciones interactivas de mecánica automotriz: teoría, guía visual, video y evaluación por día.">
+<meta property="og:url" content="https://mecanicatotal.cl/cursos.html">
+<meta property="og:image" content="https://mecanicatotal.cl/img/og-cover.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#1E3A5F">
+
+<!-- Tipografía: Plus Jakarta Sans (titulares) + Inter (cuerpo) + JetBrains Mono -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<!-- Font Awesome 6 (Iconos profesionales) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+<!-- Estilos: base compartida + hoja exclusiva de esta página -->
+<link rel="stylesheet" href="css/base/_tokens.css">
+<link rel="stylesheet" href="css/base/_reset.css">
+<link rel="stylesheet" href="css/base/_layout.css">
+<link rel="stylesheet" href="css/base/_responsive.css">
+<link rel="stylesheet" href="css/base/_richtext.css">
+<link rel="stylesheet" href="css/pages/cursos.css">
+</head>
+<body>
+
+<!-- =========================================================
+     NAVBAR (Fijo con fondo oscuro sólido siempre legible)
+     ========================================================= -->
+<header class="navbar navbar--solid" data-navbar>
+  <div class="container">
+    <a href="index.html#inicio" class="brand">
+      <span class="brand-mark" data-icon="logo"></span>
+      <span>Mecánica Total<small>Educación automotriz</small></span>
+    </a>
+    <nav class="nav-links" aria-label="Navegación principal">
+      <a href="index.html#inicio">Inicio</a>
+      <a href="index.html#nosotros">Nosotros</a>
+      <a href="index.html#cursos">Cursos</a>
+      <a href="index.html#contacto">Contacto</a>
+    </nav>
+    <button class="nav-toggle" aria-label="Abrir menú" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</header>
+
+<main class="page-offset">
+  <section class="section section--alt section--flush-top">
+    <div class="container">
+      <div class="section-head section-head--wide reveal section-head--tight text-center mx-auto">
+        <p class="eyebrow">Ruta de aprendizaje interactiva</p>
+        <h2>Catálogo y Lecciones de Mecánica Automotriz</h2>
+      </div>
+
+      <!-- =========================================================
+           LAYOUT LMS: ÁRBOL LATERAL (IZQUIERDA) + ZONA CENTRAL
+           ========================================================= -->
+      <div class="lms-container">
+        <!-- ÁRBOL NAVEGACIÓN LATERAL (IZQUIERDA) -->
+        <aside class="lms-sidebar reveal">
+          <div class="lms-sidebar-head">
+            <h4>Índice de Cursos</h4>
+            <div class="search-box">
+              <input type="text" id="courseSearch" placeholder="Buscar lección (ej: Frenos, OBD)..." aria-label="Buscar lección">
+            </div>
+          </div>
+          <nav class="tree-nav" data-tree-nav>
+            <!-- Renderizado dinámico por JavaScript (CoursesModule) -->
+          </nav>
+        </aside>
+
+        <!-- CONTENIDO CENTRAL DEL MÓDULO (CENTRO) -->
+        <div class="lms-main">
+          <div class="module-workspace" data-module-workspace>
+            <!-- Renderizado dinámico del módulo activo por JavaScript -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- =========================================================
+     FOOTER
+     ========================================================= -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="#inicio" class="brand">
+          <span class="brand-mark" data-icon="logo"></span>
+          <span>Mecánica Total<small>Educación automotriz</small></span>
+        </a>
+        <p>Plataforma educativa gratuita para aprender mecánica automotriz de forma clara, progresiva y accesible.</p>
+        <!--
+          Redes sociales: se dejan desactivadas hasta tener los perfiles reales.
+          Al crearlos, descomenta el bloque y pon las URLs reales.
+        <div class="social-links">
+          <a href="https://www.facebook.com/TU-PERFIL" target="_blank" rel="noopener noreferrer" aria-label="Facebook" data-social="facebook"></a>
+          <a href="https://www.instagram.com/TU-PERFIL" target="_blank" rel="noopener noreferrer" aria-label="Instagram" data-social="instagram"></a>
+          <a href="https://www.youtube.com/@TU-CANAL" target="_blank" rel="noopener noreferrer" aria-label="YouTube" data-social="youtube"></a>
+          <a href="https://www.tiktok.com/@TU-PERFIL" target="_blank" rel="noopener noreferrer" aria-label="TikTok" data-social="tiktok"></a>
+        </div>
+        -->
+      </div>
+
+      <div>
+        <h4>EXPLORA</h4>
+        <ul>
+          <li><a href="index.html#inicio">Inicio</a></li>
+          <li><a href="index.html#nosotros">Nosotros</a></li>
+          <li><a href="index.html#cursos">Ruta de aprendizaje</a></li>
+          <li><a href="index.html#contacto">Contacto</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4>APRENDIZAJE</h4>
+        <ul>
+          <li><a href="cursos.html">Cursos</a></li>
+          <li><a href="cursos.html">Evaluaciones</a></li>
+          <li><a href="index.html#contacto">Preguntas frecuentes</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4>INFORMACIÓN</h4>
+        <ul>
+          <li><a href="privacidad.html">Política de privacidad</a></li>
+          <li><a href="terminos.html">Términos y condiciones</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <p class="footer-motto">"El conocimiento técnico debería estar al alcance de todos."</p>
+      <span class="footer-copy">© 2026 Mecánica Total · Proyecto educativo</span>
+    </div>
+  </div>
+</footer>
+
+<!-- =========================================================
+     COMPONENTES FLOTANTES
+     ========================================================= -->
+<div class="lightbox" data-lightbox-root>
+  <button class="lightbox-close" data-lightbox-close aria-label="Cerrar imagen"></button>
+  <div class="lightbox-content">
+    <div class="lightbox-media" data-lightbox-media></div>
+    <p class="lightbox-caption" data-lightbox-caption></p>
+  </div>
+</div>
+
+<button class="back-to-top" data-back-to-top aria-label="Volver arriba"></button>
+
+<!-- SCRIPTS
+     · Versión exacta + Subresource Integrity: si el CDN entrega otro código,
+       el navegador lo rechaza.
+     · env.js contiene las credenciales locales y está fuera del repositorio. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"
+        integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK"
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="js/env.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/supabaseConfig.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/boot.js"></script>
+<script src="js/dbService.js"></script>
+<script src="js/richText.js"></script>
+<script src="js/script.js"></script>
+</body>
+</html>

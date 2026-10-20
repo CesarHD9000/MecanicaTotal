@@ -1,0 +1,21 @@
+# ============================================================================
+# .vercelignore — qué NO se sube al despliegue
+# ----------------------------------------------------------------------------
+# Solo se publica public/. Este archivo evita subir además credenciales,
+# documentación interna y el SQL de administración de la base de datos.
+# ============================================================================
+
+# Credenciales locales (en Vercel se usan Environment Variables)
+.env
+.env.*
+public/js/env.js
+
+# Documentación y SQL de administración
+docs/
+README.md
+
+# Metadatos del repositorio
+.git/
+.gitignore
+.workbuddy-ai/
+node_modules/
