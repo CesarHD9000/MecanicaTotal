@@ -1,0 +1,58 @@
+#!/bin/sh
+# ============================================================================
+# pre-commit — bloquea credenciales y documentos internos
+# ----------------------------------------------------------------------------
+# Segunda barrera además de .gitignore. Si alguien fuerza un `git add -f` o
+# trabaja en una rama donde .gitignore no se respetó, esto aborta el commit.
+#
+# Instalación (una sola vez por clon):
+#   git config core.hooksPath .githooks
+# ============================================================================
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$staged" ] && exit 0
+
+status=0
+
+# 1. Archivos que nunca deben versionarse
+for pattern in 'public/js/env\.js$' 'AUDITORIA'; do
+  hits=$(echo "$staged" | grep -Ei -- "$pattern")
+  if [ -n "$hits" ]; then
+    echo "❌ Commit bloqueado: estos archivos no deben versionarse:"
+    echo "$hits" | sed 's/^/   · /'
+    status=1
+  fi
+done
+
+# .env y sus variantes locales/producción, pero NO la plantilla .env.example.
+# El patrón antiguo `\.env(\.|$)` bloqueaba también .env.example por error.
+env_hits=$(echo "$staged" | grep -E '(^|/)\.env($|\.)' | grep -vE '(^|/)\.env\.example$')
+if [ -n "$env_hits" ]; then
+  echo "❌ Commit bloqueado: estos archivos de entorno no deben versionarse:"
+  echo "$env_hits" | sed 's/^/   · /'
+  status=1
+fi
+
+# 2. Credenciales literales en el diff (clave JWT de Supabase o project ref).
+# Se excluye .githooks/ para que el propio hook no se detecte a sí mismo:
+# su código contiene el prefijo que busca.
+leaks=$(git diff --cached --unified=0 -- . \
+        ':(exclude)*.md' \
+        ':(exclude).githooks/*' \
+        ':(exclude)docs/*' \
+        | grep -E '^\+' \
+        | grep -E 'eyJhbGciOiJIUzI1NiIsInR5cCI6|https://[a-z]{20}\.supabase\.co' \
+        | head -5)
+if [ -n "$leaks" ]; then
+  echo "❌ Commit bloqueado: se detectó una credencial de Supabase en el diff:"
+  echo "$leaks" | cut -c1-120 | sed 's/^/   · /'
+  status=1
+fi
+
+if [ "$status" -ne 0 ]; then
+  echo ""
+  echo "   Si es un falso positivo, revisa el archivo y usa 'git commit --no-verify'."
+  exit 1
+fi
+
+exit 0

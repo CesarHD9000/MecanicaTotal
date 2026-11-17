@@ -35,17 +35,18 @@ const MIME = {
 
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' https://cdn.jsdelivr.net",
-  "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com",
+  "script-src 'self' https://cdn.jsdelivr.net https://static.cloudflareinsights.com",
+  "style-src 'self' https://cdnjs.cloudflare.com https://fonts.googleapis.com",
   "font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com",
   "img-src 'self' data: https:",
   "media-src 'self' data: blob: https:",
   "frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://cloudflareinsights.com",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
-  "frame-ancestors 'none'"
+  "frame-ancestors 'none'",
+  "upgrade-insecure-requests"
 ].join('; ');
 
 const server = createServer(async (req, res) => {
@@ -66,6 +67,11 @@ const server = createServer(async (req, res) => {
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
       'Referrer-Policy': 'strict-origin-when-cross-origin',
+      'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), payment=(), usb=()',
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'credentialless',
+      'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
+      'X-Permitted-Cross-Domain-Policies': 'none',
       'Cache-Control': 'no-store'
     });
     res.end(body);
@@ -76,5 +82,5 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(PORT, '127.0.0.1', () => {
-  console.log(`\n  Mecánica Total · http://localhost:${PORT}\n  Sirviendo ${ROOT}\n`);
+  console.log(`\n  MeKa Total · http://localhost:${PORT}\n  Sirviendo ${ROOT}\n`);
 });

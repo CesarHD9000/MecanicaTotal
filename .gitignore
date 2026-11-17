@@ -1,5 +1,5 @@
 # ============================================================================
-# Mecánica Total — .gitignore
+# MeKa Total — .gitignore
 # El repositorio publica SOLO el sitio (public/). Todo lo operativo queda local.
 # ============================================================================
 
@@ -18,6 +18,9 @@ public/js/env.js
 # las instrucciones de operación. No debe publicarse.
 # ⚠️ Vive solo en tu máquina: mantené una copia de respaldo privada.
 docs/
+AUDITORIA_SEGURIDAD_2026.md
+*_AUDITORIA*.md
+*AUDITORIA*.md
 
 # ----------------------------------------------------------------------------
 # Backups y archivos temporales

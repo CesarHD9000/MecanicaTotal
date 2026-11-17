@@ -9,15 +9,20 @@
 //   npx wrangler deploy
 //
 // Con Workers Builds (Git):
-//   Build command:  node scripts/build-env.mjs
-//   Deploy command: npx wrangler deploy
-//   Variables:      SUPABASE_URL, SUPABASE_ANON_KEY
+//   Build command:    node scripts/build-env.mjs
+//   Deploy command:   npx wrangler deploy
+//   Build variables:  SUPABASE_URL, SUPABASE_ANON_KEY
+//                     (+ CF_ANALYTICS_TOKEN si usas analítica)
+//   Ojo: van en Settings → Build → Build variables and secrets, no en las
+//   variables de runtime; el build las necesita para generar js/env.js.
 // ============================================================================
 
 {
-  "name": "mecanica-total",
+  "name": "meka-total",
   "compatibility_date": "2026-10-20",
   "assets": {
-    "directory": "./public"
+    "directory": "./public",
+    // Sirve public/404.html con estado 404 en vez de la página genérica.
+    "not_found_handling": "404-page"
   }
 }

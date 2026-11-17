@@ -26,6 +26,7 @@
     CONNECTION: 'No hay conexión con la base de datos. Revisa tu sesión e inténtalo de nuevo.',
     FORBIDDEN: 'Tu cuenta no tiene permisos de administrador.',
     VALIDATION: 'Los datos enviados no son válidos.',
+    DUPLICATE_DAY: 'Ya existe una lección con ese número de día.',
     DB_ERROR: 'La base de datos rechazó la operación.'
   };
 
@@ -38,73 +39,36 @@
   // Los iconos SVG de la navbar los pinta js/boot.js.
 
   document.addEventListener('DOMContentLoaded', () => {
-    let currentEditingDayNum = null;
-    let currentQuizDayNum = null;
-    let tempQuizQuestions = [];
-
     const tableBody = document.getElementById('adminDaysTableBody');
     const searchInput = document.getElementById('adminSearch');
-
-    // Day Modal
-    const dayModal = document.getElementById('dayModal');
-    const dayForm = document.getElementById('dayForm');
-    const subsectionsContainer = document.getElementById('subsectionsContainer');
-    const galleryContainer = document.getElementById('galleryContainer');
-
-    // Video Controls
-    const videoTypeSelect = document.getElementById('videoType');
-    const videoUrlGroup = document.getElementById('videoUrlGroup');
-    const videoUploadGroup = document.getElementById('videoUploadGroup');
-    const videoFileInput = document.getElementById('videoFileInput');
-    const videoDataUrlInput = document.getElementById('videoDataUrl');
-    const videoFileNameLabel = document.getElementById('videoFileName');
-
-    // Quiz Modal
-    const quizModal = document.getElementById('quizModal');
-    const quizList = document.getElementById('quizQuestionsList');
 
     let cachedDays = [];
 
     // ------------------------------------------------------------------------
-    // SUBIDA DE ARCHIVOS (imagen / video) → data URL con límite de tamaño
-    // ------------------------------------------------------------------------
-    function readFileAsDataUrl(file, maxBytes, targetInput, labelEl, okText) {
-      if (!file) return;
-      if (file.size > maxBytes) {
-        alert(
-          `El archivo pesa ${(file.size / 1024 / 1024).toFixed(1)} MB y el máximo es ` +
-          `${Math.round(maxBytes / 1024 / 1024)} MB.\n\n` +
-          'Usa un enlace externo (URL) en lugar de subir el archivo: mantiene la base de datos ligera.'
-        );
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        targetInput.value = evt.target.result;
-        if (labelEl) labelEl.textContent = okText || file.name;
-      };
-      reader.onerror = () => alert('No se pudo leer el archivo seleccionado.');
-      reader.readAsDataURL(file);
-    }
-
-    videoTypeSelect.addEventListener('change', () => {
-      const isUpload = videoTypeSelect.value === 'upload';
-      videoUrlGroup.style.display = isUpload ? 'none' : 'block';
-      videoUploadGroup.style.display = isUpload ? 'block' : 'none';
-    });
-
-    videoFileInput.addEventListener('change', (e) => {
-      readFileAsDataUrl(e.target.files[0], MAX_VIDEO_BYTES, videoDataUrlInput, videoFileNameLabel);
-    });
-
-    const btnUploadVideo = document.getElementById('btnUploadVideo');
-    if (btnUploadVideo) btnUploadVideo.addEventListener('click', () => videoFileInput.click());
-
-    // ------------------------------------------------------------------------
     // DASHBOARD
     // ------------------------------------------------------------------------
-    async function renderDashboard() {
-      cachedDays = await DbService.getAllDays();
+    async function renderDashboard(days) {
+      try {
+        // El editor ya trae las lecciones recién guardadas: se reutilizan en
+        // lugar de repetir la consulta (que además incluye galería y videos).
+        cachedDays = Array.isArray(days) ? days : await DbService.getAllDays();
+      } catch (err) {
+        // Un fallo de red no es lo mismo que una base de datos vacía: se dice
+        // cuál de los dos es y se ofrece reintentar.
+        console.error('[Admin] No se pudo cargar el panel:', err && err.code);
+        cachedDays = [];
+        renderTableState({
+          tone: 'error',
+          icon: 'fa-plug-circle-xmark',
+          title: 'No se pudo cargar el contenido',
+          text: describeError(err) + ' Revisa tu conexión e inténtalo de nuevo.',
+          actionLabel: 'Reintentar',
+          onAction: renderDashboard
+        });
+        Notify.error('No se pudo cargar el panel: ' + describeError(err));
+        return;
+      }
+
       let totalSubsections = 0;
       let totalGalleryItems = 0;
       let totalQuizzes = 0;
@@ -122,9 +86,21 @@
       document.getElementById('statSubsections').textContent = totalSubsections;
       document.getElementById('statGalleryItems').textContent = totalGalleryItems;
       document.getElementById('statQuizzes').textContent = totalQuizzes;
-      document.getElementById('statFinalQuizCount').textContent = finalQuiz ? finalQuiz.length : 0;
+      document.getElementById('statFinalQuizCount').textContent = finalQuiz && finalQuiz.questions ? finalQuiz.questions.length : 0;
 
       renderTable();
+      renderDashStatus();
+      renderDashPreview();
+
+      // Contador de mensajes nuevos en el botón de la bandeja (silencioso si
+      // la RLS todavía no permite leer).
+      refreshInboxBadge();
+    }
+
+    /* Muestra un bloque de estado dentro de la tabla, ocupando la fila entera. */
+    function renderTableState(opts) {
+      tableBody.innerHTML = '<tr><td colspan="6" class="table-state-cell"></td></tr>';
+      Notify.state(tableBody.querySelector('.table-state-cell'), opts);
     }
 
     function renderTable() {
@@ -147,14 +123,13 @@
         html += `
           <tr>
             <td><span class="badge badge--level">Día ${escapeHtml(d.dayNumber)}</span></td>
-            <td><span class="m-icon-sm m-icon-sm--table">${Utils.safeIcon(d.icon)}</span></td>
             <td>
               <div class="table-day-title">${escapeHtml(d.title)}</div>
               <small class="table-day-desc">${escapeHtml(d.shortDesc || '')}</small>
             </td>
-            <td><span class="badge">${subCount} subsecciones</span></td>
-            <td><span class="badge">${galCount} imágenes</span></td>
-            <td><span class="badge">${quizCount} preguntas</span></td>
+            <td data-label="Teoría"><span class="badge">${subCount} subsecciones</span></td>
+            <td data-label="Galería"><span class="badge">${galCount} imágenes</span></td>
+            <td data-label="Quiz"><span class="badge">${quizCount} preguntas</span></td>
             <td>
               <div class="table-actions">
                 <button type="button" class="btn btn--outline btn--sm" data-action="edit" data-day="${escapeHtml(d.dayNumber)}"><i class="fa-solid fa-pen-to-square"></i> Editar</button>
@@ -167,17 +142,36 @@
       });
 
       if (!html) {
-        html = `<tr><td colspan="7" class="table-empty">No se encontraron días que coincidan con la búsqueda.</td></tr>`;
+        // Se distingue "no hay lecciones todavía" de "el filtro no encuentra nada":
+        // el mensaje y la acción posible son distintos.
+        if (!days.length) {
+          renderTableState({
+            icon: 'fa-folder-open',
+            title: 'Aún no hay lecciones',
+            text: 'Crea la primera para que aparezca en el catálogo público.',
+            actionLabel: 'Crear la primera lección',
+            onAction: () => navigateTo('#lecciones/nuevo')
+          });
+          return;
+        }
+        renderTableState({
+          icon: 'fa-magnifying-glass',
+          title: 'Sin coincidencias',
+          text: 'Ninguna lección coincide con la búsqueda.',
+          actionLabel: 'Limpiar búsqueda',
+          onAction: () => { searchInput.value = ''; renderTable(); }
+        });
+        return;
       }
 
       tableBody.innerHTML = html;
 
       tableBody.querySelectorAll('[data-action="edit"]').forEach(btn => {
-        btn.addEventListener('click', () => openDayModal(btn.dataset.day, btn));
+        btn.addEventListener('click', () => navigateTo(`#lecciones/dia-${btn.dataset.day}`));
       });
 
       tableBody.querySelectorAll('[data-action="quiz"]').forEach(btn => {
-        btn.addEventListener('click', () => openQuizModal(btn.dataset.day));
+        btn.addEventListener('click', () => navigateTo(`#lecciones/dia-${btn.dataset.day}/quiz`));
       });
 
       tableBody.querySelectorAll('[data-action="delete"]').forEach(btn => {
@@ -187,8 +181,9 @@
           try {
             await DbService.deleteDay(day);
             await renderDashboard();
+            Notify.success(`Día ${day} eliminado.`);
           } catch (err) {
-            alert('No se pudo eliminar el día.\n\n' + describeError(err));
+            Notify.error('No se pudo eliminar el día. ' + describeError(err));
           }
         });
       });
@@ -197,667 +192,727 @@
     searchInput.addEventListener('input', renderTable);
 
     // ------------------------------------------------------------------------
-    // EDITOR DE TEXTO ENRIQUECIDO (subsecciones)
+    // BANDEJA DE CONTACTO
     // ------------------------------------------------------------------------
-    function wrapSelection(ta, marker) {
-      const s = ta.selectionStart, e = ta.selectionEnd;
-      const val = ta.value;
-      const sel = val.slice(s, e) || 'texto';
-      ta.value = val.slice(0, s) + marker + sel + marker + val.slice(e);
-      ta.selectionStart = s + marker.length;
-      ta.selectionEnd = s + marker.length + sel.length;
-      ta.focus();
+    const inboxModal = document.getElementById('inboxModal');
+    const inboxList = document.getElementById('inboxList');
+    const inboxDetail = document.getElementById('inboxDetail');
+    const inboxBody = inboxModal ? inboxModal.querySelector('.inbox-body') : null;
+    const inboxSearch = document.getElementById('inboxSearch');
+    const inboxUnreadBadge = document.getElementById('inboxUnreadBadge');
+
+    let inboxMessages = [];
+    let inboxFilter = 'all';
+    let inboxQuery = '';
+    let inboxSelectedId = null;
+
+    /* 'nuevo' | 'respondido'. Si la migración de la columna aún no se ejecutó,
+       el campo llega undefined y se trata como nuevo. */
+    const inboxStatusOf = (msg) => (msg.status === 'respondido' ? 'respondido' : 'nuevo');
+
+    const inboxDate = (iso) => {
+      if (!iso) return '';
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return '';
+      return new Intl.DateTimeFormat('es-CL', { dateStyle: 'medium', timeStyle: 'short' }).format(d);
+    };
+
+    /* Fecha corta para la lista: hoy / ayer / 27 oct. Así el nombre no se
+       trunca por culpa de una fecha larga. */
+    const inboxShortDate = (iso) => {
+      if (!iso) return '';
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return '';
+      const hoy = new Date();
+      const dias = Math.floor((hoy.setHours(0, 0, 0, 0) - new Date(d).setHours(0, 0, 0, 0)) / 86400000);
+      if (dias === 0) return new Intl.DateTimeFormat('es-CL', { timeStyle: 'short' }).format(d);
+      if (dias === 1) return 'Ayer';
+      return new Intl.DateTimeFormat('es-CL', { day: '2-digit', month: 'short' }).format(d);
+    };
+
+    function inboxMatches(msg) {
+      if (inboxFilter !== 'all' && inboxStatusOf(msg) !== inboxFilter) return false;
+      if (!inboxQuery) return true;
+      const hay = `${msg.name || ''} ${msg.email || ''} ${msg.message || ''}`.toLowerCase();
+      return hay.includes(inboxQuery);
     }
 
-    function prefixLines(ta, prefix) {
-      const val = ta.value;
-      const s = ta.selectionStart, e = ta.selectionEnd;
-      let from = val.lastIndexOf('\n', s - 1) + 1;
-      let to = val.indexOf('\n', e);
-      if (to === -1) to = val.length;
-
-      const block = val.slice(from, to);
-      const numbered = /^\d+\.\s$/.test(prefix);
-      const newBlock = block.split('\n').map((ln, i) => {
-        const clean = ln.replace(/^(\s*)([-•·–]|#{2,4}|>|\d+[.)])\s+/, '$1');
-        return (numbered ? (i + 1) + '. ' : prefix) + clean;
-      }).join('\n');
-
-      ta.value = val.slice(0, from) + newBlock + val.slice(to);
-      ta.selectionStart = from;
-      ta.selectionEnd = from + newBlock.length;
-      ta.focus();
+    function renderInboxBadge() {
+      if (!inboxUnreadBadge) return;
+      const nuevas = inboxMessages.filter(m => inboxStatusOf(m) === 'nuevo').length;
+      inboxUnreadBadge.textContent = String(nuevas);
+      inboxUnreadBadge.hidden = nuevas === 0;
     }
 
-    function insertText(ta, text) {
-      const s = ta.selectionStart, e = ta.selectionEnd;
-      ta.value = ta.value.slice(0, s) + text + ta.value.slice(e);
-      ta.selectionStart = ta.selectionEnd = s + text.length;
-      ta.focus();
-    }
-
-    let subSeq = 0;
-
-    function refreshSubsectionOrder() {
-      const items = subsectionsContainer.querySelectorAll('.sub-item');
-      items.forEach((item, i) => {
-        const idx = item.querySelector('[data-sub-index]');
-        if (idx) idx.textContent = String(i + 1).padStart(2, '0');
-        const up = item.querySelector('[data-move="up"]');
-        const down = item.querySelector('[data-move="down"]');
-        if (up) up.disabled = i === 0;
-        if (down) down.disabled = i === items.length - 1;
+    function renderInboxCounts() {
+      const counts = { all: inboxMessages.length, nuevo: 0, respondido: 0 };
+      inboxMessages.forEach(m => { counts[inboxStatusOf(m)] += 1; });
+      inboxModal.querySelectorAll('[data-inbox-count]').forEach(el => {
+        el.textContent = String(counts[el.dataset.inboxCount] ?? 0);
       });
-      const count = document.getElementById('subCount');
-      if (count) {
-        count.textContent = items.length === 1 ? '1 subsección' : `${items.length} subsecciones`;
-      }
     }
 
-    /* Contrae o expande sin tocar el contenido (los valores siguen en el DOM). */
-    function setSubsectionOpen(item, open) {
-      item.classList.toggle('is-open', open);
-      const btn = item.querySelector('[data-toggle]');
-      if (!btn) return;
-      btn.setAttribute('aria-expanded', String(open));
-      btn.setAttribute('aria-label', open ? 'Contraer subsección' : 'Expandir subsección');
-      btn.title = open ? 'Contraer' : 'Expandir';
-      const icon = btn.querySelector('i');
-      if (icon) icon.className = open ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down';
-    }
+    function renderInboxList() {
+      const visibles = inboxMessages.filter(inboxMatches);
 
-    function moveSubsection(item, delta) {
-      const items = Array.from(subsectionsContainer.querySelectorAll('.sub-item'));
-      const i = items.indexOf(item);
-      const j = i + delta;
-      if (i < 0 || j < 0 || j >= items.length) return;
-
-      if (delta < 0) subsectionsContainer.insertBefore(item, items[j]);
-      else subsectionsContainer.insertBefore(item, items[j].nextSibling);
-
-      refreshSubsectionOrder();
-      markDirty();
-
-      const btn = item.querySelector(delta < 0 ? '[data-move="up"]' : '[data-move="down"]');
-      if (btn) btn.focus();
-    }
-
-    function removeSubsection(item) {
-      const title = (item.querySelector('.sub-subtitle')?.value || '').trim();
-      const content = (item.querySelector('.sub-content')?.value || '').trim();
-      if ((title || content) && !confirm('¿Eliminar esta subsección y todo su contenido?\nEsta acción no se puede deshacer.')) {
+      if (!visibles.length) {
+        Notify.state(inboxList, inboxMessages.length
+          ? {
+              icon: 'fa-magnifying-glass',
+              title: 'Sin coincidencias',
+              text: 'Ningún mensaje coincide con el filtro o la búsqueda.',
+              actionLabel: 'Ver todas',
+              onAction: () => {
+                inboxFilter = 'all';
+                inboxQuery = '';
+                if (inboxSearch) inboxSearch.value = '';
+                syncInboxFilterButtons();
+                renderInboxList();
+              }
+            }
+          : {
+              icon: 'fa-inbox',
+              title: 'Todavía no hay mensajes',
+              text: 'Los que lleguen desde el formulario de contacto aparecerán aquí.'
+            });
         return;
       }
-      item.remove();
-      refreshSubsectionOrder();
-      markDirty();
-    }
 
-    let draggedSub = null;
-
-    function bindSubsectionDrag(item) {
-      const handle = item.querySelector('.sub-drag');
-      if (!handle) return;
-
-      handle.addEventListener('dragstart', (e) => {
-        draggedSub = item;
-        item.classList.add('is-dragging');
-        e.dataTransfer.effectAllowed = 'move';
-        try { e.dataTransfer.setData('text/plain', ''); } catch (_) { /* Firefox */ }
-      });
-
-      handle.addEventListener('dragend', () => {
-        item.classList.remove('is-dragging');
-        subsectionsContainer.querySelectorAll('.sub-item').forEach(el => {
-          el.classList.remove('is-drop-before', 'is-drop-after');
-        });
-        draggedSub = null;
-        refreshSubsectionOrder();
-        markDirty();
-      });
-
-      item.addEventListener('dragover', (e) => {
-        if (!draggedSub || draggedSub === item) return;
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        const rect = item.getBoundingClientRect();
-        const after = (e.clientY - rect.top) > rect.height / 2;
-        subsectionsContainer.querySelectorAll('.sub-item').forEach(el => {
-          el.classList.remove('is-drop-before', 'is-drop-after');
-        });
-        item.classList.add(after ? 'is-drop-after' : 'is-drop-before');
-      });
-
-      item.addEventListener('dragleave', () => {
-        item.classList.remove('is-drop-before', 'is-drop-after');
-      });
-
-      item.addEventListener('drop', (e) => {
-        if (!draggedSub || draggedSub === item) return;
-        e.preventDefault();
-        const rect = item.getBoundingClientRect();
-        const after = (e.clientY - rect.top) > rect.height / 2;
-        item.classList.remove('is-drop-before', 'is-drop-after');
-        if (after) subsectionsContainer.insertBefore(draggedSub, item.nextSibling);
-        else subsectionsContainer.insertBefore(draggedSub, item);
-        refreshSubsectionOrder();
-        markDirty();
-      });
-    }
-
-    function addSubsectionRow(subtitle = '', content = '', opts = {}) {
-      const card = document.createElement('div');
-      card.className = 'dynamic-card-item sub-item';
-      const uid = 'sub-body-' + (++subSeq);
-
-      card.innerHTML = `
-        <div class="sub-head">
-          <button type="button" class="sub-drag" draggable="true" aria-label="Arrastrar para reordenar" title="Arrastrar para reordenar">
-            <i class="fa-solid fa-grip-vertical" aria-hidden="true"></i>
+      inboxList.innerHTML = visibles.map(msg => {
+        const estado = inboxStatusOf(msg);
+        const nombre = msg.name || 'Sin nombre';
+        const inicial = nombre.trim().charAt(0).toUpperCase() || '?';
+        const seleccionado = String(msg.id) === String(inboxSelectedId);
+        return `
+          <button type="button" class="inbox-item${estado === 'nuevo' ? ' is-nuevo' : ''}${seleccionado ? ' is-selected' : ''}"
+                  data-inbox-id="${escapeHtml(String(msg.id))}" role="listitem"
+                  aria-current="${seleccionado ? 'true' : 'false'}">
+            <span class="inbox-avatar" aria-hidden="true">${escapeHtml(inicial)}</span>
+            <span class="inbox-item-main">
+              <span class="inbox-item-top">
+                <span class="inbox-item-name">${escapeHtml(nombre)}</span>
+                <span class="inbox-item-date">${escapeHtml(inboxShortDate(msg.created_at))}</span>
+              </span>
+              <span class="inbox-item-snippet">${escapeHtml(msg.message || '')}</span>
+            </span>
           </button>
-          <span class="sub-index" data-sub-index>00</span>
-          <input type="text" class="sub-subtitle sub-title" placeholder="Título de la subsección"
-                 aria-label="Título de la subsección" value="${escapeHtml(subtitle)}">
-          <div class="sub-actions">
-            <button type="button" class="sub-btn" data-move="up" aria-label="Mover arriba" title="Mover arriba"><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>
-            <button type="button" class="sub-btn" data-move="down" aria-label="Mover abajo" title="Mover abajo"><i class="fa-solid fa-arrow-down" aria-hidden="true"></i></button>
-            <button type="button" class="sub-btn" data-toggle aria-expanded="true" aria-controls="${uid}" aria-label="Contraer subsección" title="Contraer"><i class="fa-solid fa-chevron-up" aria-hidden="true"></i></button>
-            <button type="button" class="sub-btn sub-btn--danger" data-remove aria-label="Eliminar subsección" title="Eliminar subsección"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
+        `;
+      }).join('');
+
+      inboxList.querySelectorAll('[data-inbox-id]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          inboxSelectedId = btn.dataset.inboxId;
+          if (inboxBody) inboxBody.classList.add('is-detail-open');
+          renderInboxList();
+          renderInboxDetail();
+        });
+      });
+    }
+
+    function renderInboxDetail() {
+      if (!inboxDetail) return;
+      const msg = inboxMessages.find(m => String(m.id) === String(inboxSelectedId));
+
+      if (!msg) {
+        inboxDetail.innerHTML = '<div class="inbox-detail-empty"></div>';
+        Notify.state(inboxDetail.querySelector('.inbox-detail-empty'), {
+          icon: 'fa-envelope-open-text',
+          title: 'Selecciona un mensaje',
+          text: 'Elige uno de la lista para leerlo y responderlo.'
+        });
+        return;
+      }
+
+      const estado = inboxStatusOf(msg);
+      const nombre = msg.name || 'Sin nombre';
+
+      inboxDetail.innerHTML = `
+        <button type="button" class="inbox-back" data-inbox-back>
+          <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Volver
+        </button>
+
+        <div class="inbox-detail-head">
+          <div>
+            <p class="inbox-detail-name">${escapeHtml(nombre)}</p>
+            <a class="inbox-detail-mail" href="mailto:${escapeHtml(msg.email || '')}">
+              <i class="fa-solid fa-envelope" aria-hidden="true"></i> ${escapeHtml(msg.email || '—')}
+            </a>
+          </div>
+          <div class="inbox-detail-status">
+            <span class="inbox-chip inbox-chip--${estado}">
+              <i class="fa-solid ${estado === 'respondido' ? 'fa-circle-check' : 'fa-circle'}" aria-hidden="true"></i>
+              ${estado === 'respondido' ? 'Respondido' : 'Nuevo'}
+            </span>
+            <p class="inbox-detail-date">${escapeHtml(inboxDate(msg.created_at))}</p>
           </div>
         </div>
-        <div class="sub-body" id="${uid}">
-          <div class="sub-editor">
-            <div class="sub-toolbar" role="toolbar" aria-label="Formato del texto">
-              <div class="sub-fmt">
-                <div class="sub-tool-group">
-                  <button type="button" class="sub-tool" data-fmt="bold" title="Negrita (**texto**)" aria-label="Negrita"><b>B</b></button>
-                  <button type="button" class="sub-tool" data-fmt="italic" title="Cursiva (*texto*)" aria-label="Cursiva"><i>I</i></button>
-                  <button type="button" class="sub-tool" data-fmt="heading" title="Subtítulo interno (## texto)" aria-label="Subtítulo interno">H</button>
-                </div>
-                <span class="sub-tool-sep" aria-hidden="true"></span>
-                <div class="sub-tool-group">
-                  <button type="button" class="sub-tool" data-fmt="ul" title="Lista con viñetas (- texto)" aria-label="Lista con viñetas">&#8226;</button>
-                  <button type="button" class="sub-tool" data-fmt="ol" title="Lista numerada (1. texto)" aria-label="Lista numerada">1.</button>
-                  <button type="button" class="sub-tool" data-fmt="note" title="Nota destacada (&gt; texto)" aria-label="Nota destacada">!</button>
-                  <button type="button" class="sub-tool" data-fmt="hr" title="Separador (---)" aria-label="Separador">&mdash;</button>
-                </div>
-              </div>
-              <div class="sub-mode" role="group" aria-label="Modo de edición">
-                <button type="button" class="sub-mode-btn is-active" data-mode="edit">Editar</button>
-                <button type="button" class="sub-mode-btn" data-mode="preview">Vista previa</button>
-              </div>
-            </div>
-            <textarea class="sub-content" rows="12" placeholder="Contenido o explicación detallada...">${escapeHtml(content)}</textarea>
-            <div class="sub-preview" aria-live="polite"></div>
-          </div>
+
+        <div class="inbox-message">${escapeHtml(msg.message || '')}</div>
+
+        <div class="inbox-reply">
+          <label class="inbox-reply-label" for="inboxReplyText">Tu respuesta</label>
+          <textarea id="inboxReplyText" spellcheck="true">${escapeHtml(`Hola ${nombre},\n\nGracias por escribir a MeKa Total.\n\n`)}</textarea>
+          <p class="inbox-reply-hint">
+            El botón abre tu programa de correo con el mensaje ya escrito y el texto original citado.
+            El envío real necesita un proveedor de correo configurado; desde aquí queda registrado como respondido.
+          </p>
+        </div>
+
+        <div class="inbox-actions">
+          <button type="button" class="btn btn--primary btn--sm" data-inbox-reply>
+            <i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Abrir en tu correo
+          </button>
+          <button type="button" class="btn btn--outline btn--sm" data-inbox-toggle>
+            ${estado === 'respondido' ? 'Marcar como nueva' : 'Marcar como respondida'}
+          </button>
+          <button type="button" class="btn btn--ghost btn--sm btn--danger-ghost" data-inbox-delete>
+            <i class="fa-solid fa-trash-can" aria-hidden="true"></i> Eliminar
+          </button>
         </div>
       `;
 
-      const ta = card.querySelector('.sub-content');
-      const preview = card.querySelector('.sub-preview');
-      const editor = card.querySelector('.sub-editor');
-      const modeBtns = card.querySelectorAll('.sub-mode-btn');
+      inboxDetail.querySelector('[data-inbox-back]')?.addEventListener('click', () => {
+        if (inboxBody) inboxBody.classList.remove('is-detail-open');
+        inboxSelectedId = null;
+        renderInboxList();
+        renderInboxDetail();
+      });
 
-      function setMode(mode) {
-        const isPreview = mode === 'preview';
-        editor.classList.toggle('is-previewing', isPreview);
-        modeBtns.forEach(b => b.classList.toggle('is-active', b.dataset.mode === mode));
-        if (isPreview) preview.innerHTML = RichText.render(ta.value);
-        else ta.focus();
+      inboxDetail.querySelector('[data-inbox-reply]')?.addEventListener('click', () => {
+        const texto = inboxDetail.querySelector('#inboxReplyText').value.trim();
+        const cuerpo = `${texto}\n\n---\nTu mensaje original:\n${msg.message || ''}`;
+        const asunto = 'Re: Tu consulta en MeKa Total';
+        window.location.href =
+          `mailto:${encodeURIComponent(msg.email || '')}` +
+          `?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
+      });
+
+      inboxDetail.querySelector('[data-inbox-toggle]')?.addEventListener('click', async (e) => {
+        const nuevo = estado === 'respondido' ? 'nuevo' : 'respondido';
+        e.currentTarget.disabled = true;
+        try {
+          await DbService.setContactMessageStatus(msg.id, nuevo);
+          msg.status = nuevo;
+          msg.replied_at = nuevo === 'respondido' ? new Date().toISOString() : null;
+          Notify.success(nuevo === 'respondido' ? 'Marcado como respondido.' : 'Marcado como nuevo.');
+          renderInboxCounts();
+          renderInboxBadge();
+          renderInboxList();
+          renderInboxDetail();
+        } catch (err) {
+          Notify.error(describeError(err));
+          e.currentTarget.disabled = false;
+        }
+      });
+
+      inboxDetail.querySelector('[data-inbox-delete]')?.addEventListener('click', async (e) => {
+        if (!confirm(`¿Eliminar el mensaje de ${nombre}?\n\nEsta acción no se puede deshacer.`)) return;
+        e.currentTarget.disabled = true;
+        try {
+          await DbService.deleteContactMessage(msg.id);
+          inboxMessages = inboxMessages.filter(m => String(m.id) !== String(msg.id));
+          inboxSelectedId = null;
+          if (inboxBody) inboxBody.classList.remove('is-detail-open');
+          Notify.success('Mensaje eliminado.');
+          renderInboxCounts();
+          renderInboxBadge();
+          renderInboxList();
+          renderInboxDetail();
+        } catch (err) {
+          Notify.error(describeError(err));
+          e.currentTarget.disabled = false;
+        }
+      });
+    }
+
+    function syncInboxFilterButtons() {
+      inboxModal.querySelectorAll('[data-inbox-filter]').forEach(btn => {
+        const activo = btn.dataset.inboxFilter === inboxFilter;
+        btn.classList.toggle('is-active', activo);
+        btn.setAttribute('aria-pressed', String(activo));
+      });
+    }
+
+    async function loadInbox() {
+      try {
+        inboxMessages = await DbService.listContactMessages();
+      } catch (err) {
+        inboxMessages = [];
+        renderInboxBadge();
+        Notify.state(inboxList, {
+          tone: 'error',
+          icon: 'fa-plug-circle-xmark',
+          title: 'No se pudieron cargar los mensajes',
+          text: describeError(err) + ' Si es la primera vez, revisa que la migración de la bandeja esté ejecutada.',
+          actionLabel: 'Reintentar',
+          onAction: loadInbox
+        });
+        return;
       }
 
-      modeBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+      // Se conserva la selección si el mensaje sigue existiendo.
+      if (inboxSelectedId && !inboxMessages.some(m => String(m.id) === String(inboxSelectedId))) {
+        inboxSelectedId = null;
+      }
+      renderInboxCounts();
+      renderInboxBadge();
+      renderInboxList();
+      renderInboxDetail();
+    }
 
-      card.querySelectorAll('.sub-tool[data-fmt]').forEach(btn => {
+    async function openInbox() {
+      if (!inboxModal) return;
+      inboxModal.classList.add('is-open');
+      if (inboxBody) inboxBody.classList.remove('is-detail-open');
+      syncInboxFilterButtons();
+      await loadInbox();
+    }
+
+    function closeInbox() {
+      if (inboxModal) inboxModal.classList.remove('is-open');
+    }
+
+    /* El contador del botón se actualiza al entrar al panel, sin abrir la bandeja.
+       Si la RLS aún no permite leer, se ignora en silencio. */
+    async function refreshInboxBadge() {
+      try {
+        inboxMessages = await DbService.listContactMessages();
+        renderInboxBadge();
+        renderDashInbox(false);
+      } catch (err) {
+        if (inboxUnreadBadge) inboxUnreadBadge.hidden = true;
+        renderDashInbox(true);
+      }
+    }
+
+    if (inboxModal) {
+      document.getElementById('btnOpenInbox')?.addEventListener('click', openInbox);
+      document.getElementById('closeInboxModal')?.addEventListener('click', closeInbox);
+
+      inboxModal.querySelectorAll('[data-inbox-filter]').forEach(btn => {
         btn.addEventListener('click', () => {
-          const fmt = btn.dataset.fmt;
-          if (fmt === 'bold') wrapSelection(ta, '**');
-          else if (fmt === 'italic') wrapSelection(ta, '*');
-          else if (fmt === 'heading') prefixLines(ta, '## ');
-          else if (fmt === 'ul') prefixLines(ta, '- ');
-          else if (fmt === 'ol') prefixLines(ta, '1. ');
-          else if (fmt === 'note') prefixLines(ta, '> ');
-          else if (fmt === 'hr') insertText(ta, '\n---\n');
-          markDirty();
+          inboxFilter = btn.dataset.inboxFilter;
+          syncInboxFilterButtons();
+          renderInboxList();
         });
       });
 
-      card.querySelector('[data-toggle]').addEventListener('click', (e) => {
-        e.stopPropagation();
-        setSubsectionOpen(card, !card.classList.contains('is-open'));
-      });
-      card.querySelector('[data-remove]').addEventListener('click', () => removeSubsection(card));
-      card.querySelector('[data-move="up"]').addEventListener('click', () => moveSubsection(card, -1));
-      card.querySelector('[data-move="down"]').addEventListener('click', () => moveSubsection(card, 1));
-
-      // Clic en la cabecera (fuera del título y los botones) alterna el acordeón.
-      card.querySelector('.sub-head').addEventListener('click', (e) => {
-        if (e.target.closest('input, button')) return;
-        setSubsectionOpen(card, !card.classList.contains('is-open'));
+      inboxSearch?.addEventListener('input', (e) => {
+        inboxQuery = e.target.value.trim().toLowerCase();
+        renderInboxList();
       });
 
-      bindSubsectionDrag(card);
-
-      subsectionsContainer.appendChild(card);
-      setSubsectionOpen(card, opts.open === true);
-      refreshSubsectionOrder();
-
-      if (opts.focus) card.querySelector('.sub-subtitle').focus();
-      return card;
-    }
-
-    document.getElementById('btnAddSubsection').addEventListener('click', () => {
-      const card = addSubsectionRow('', '', { open: true, focus: true });
-      markDirty();
-      card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    });
-
-    // ------------------------------------------------------------------------
-    // GALERÍA
-    // ------------------------------------------------------------------------
-    function addGalleryRow(image = '', caption = '') {
-      const card = document.createElement('div');
-      card.className = 'dynamic-card-item gallery-row-item';
-      card.style.cssText = 'background:var(--c-surface); border:1px solid var(--c-border); padding:1rem; border-radius:var(--radius-m); margin-bottom:0.8rem;';
-      card.innerHTML = `
-        <div class="dynamic-card-head">
-          <strong>Elemento de Galería</strong>
-          <button type="button" class="btn btn--ghost btn--sm btn--danger-ghost" data-remove-gallery>&times; Eliminar</button>
-        </div>
-        <div class="form-group form-group--tight">
-          <label class="label-sm">Imagen (URL o Subir archivo)</label>
-          <div class="input-inline-row">
-            <input type="text" class="gal-image-url" placeholder="URL de la imagen o deja en blanco para ilustración por defecto" value="${escapeHtml(image)}">
-            <input type="file" accept="image/*" class="gal-file-input file-input-hidden">
-            <button type="button" class="btn btn--outline btn--sm" data-upload-gallery><i class="fa-solid fa-upload"></i> Subir</button>
-          </div>
-        </div>
-        <div class="form-group form-group--flush">
-          <label class="label-sm">Explicación / Texto Inferior (Caption)</label>
-          <textarea class="gal-caption" rows="2" placeholder="Explicación detallada del componente mostrado...">${escapeHtml(caption)}</textarea>
-        </div>
-      `;
-
-      const fileInput = card.querySelector('.gal-file-input');
-      const urlInput = card.querySelector('.gal-image-url');
-
-      card.querySelector('[data-remove-gallery]').addEventListener('click', () => {
-        card.remove();
-        markDirty();
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && inboxModal.classList.contains('is-open')) closeInbox();
       });
+    }
 
-      card.querySelector('[data-upload-gallery]').addEventListener('click', () => fileInput.click());
+    // ------------------------------------------------------------------------
+    // ESTRUCTURA DEL DASHBOARD — navegación lateral y tarjetas de resumen
+    // ------------------------------------------------------------------------
+    const sidebarEl = document.getElementById('adminSidebar');
+    const sidebarBackdrop = document.getElementById('adminSidebarBackdrop');
+    const menuToggle = document.getElementById('adminMenuToggle');
+    const topbarTitle = document.getElementById('adminTopbarTitle');
 
-      fileInput.addEventListener('change', (e) => {
-        readFileAsDataUrl(e.target.files[0], MAX_IMAGE_BYTES, urlInput);
-        markDirty();
+    function closeSidebar() {
+      if (!sidebarEl) return;
+      sidebarEl.classList.remove('is-open');
+      if (sidebarBackdrop) sidebarBackdrop.hidden = true;
+      if (menuToggle) menuToggle.setAttribute('aria-expanded', 'false');
+    }
+
+    if (menuToggle && sidebarEl) {
+      menuToggle.addEventListener('click', () => {
+        const abierto = sidebarEl.classList.toggle('is-open');
+        if (sidebarBackdrop) sidebarBackdrop.hidden = !abierto;
+        menuToggle.setAttribute('aria-expanded', String(abierto));
       });
-
-      galleryContainer.appendChild(card);
     }
+    sidebarBackdrop?.addEventListener('click', closeSidebar);
 
-    document.getElementById('btnAddGalleryItem').addEventListener('click', () => addGalleryRow());
+    /* ------------------------------------------------------------------------
+       RUTAS DEL PANEL
+       Una sola página, rutas con hash:
+         #dashboard · #lecciones · #lecciones/nuevo
+         #lecciones/dia-3/teoria · #quiz-final
+       Al recargar se reconstruye desde el hash, así que el editor sobrevive a F5.
+       ---------------------------------------------------------------------- */
+    const VIEW_TITLES = {
+      dashboard: 'Dashboard',
+      lecciones: 'Lecciones',
+      editor: 'Editar lección',
+      'quiz-final': 'Quiz final'
+    };
+    const adminViews = [...document.querySelectorAll('.admin-view')];
+    let authOk = false;
+    let currentRouteKey = null;
+    let appliedHash = '#dashboard';
 
-    // PORTADA DEL MÓDULO (ruta/URL o archivo local)
-    const coverUrlInput = document.getElementById('dayCoverUrl');
-    const coverFileInput = document.getElementById('dayCoverFile');
-    document.getElementById('btnUploadCover').addEventListener('click', () => coverFileInput.click());
-    coverFileInput.addEventListener('change', (e) => {
-      readFileAsDataUrl(e.target.files[0], MAX_IMAGE_BYTES, coverUrlInput);
-    });
+    function parseRoute() {
+      const raw = (location.hash || '').replace(/^#/, '');
+      if (!raw || raw === 'dashboard') return { view: 'dashboard' };
+      if (raw === 'lecciones') return { view: 'lecciones' };
+      if (raw === 'quiz-final') return { view: 'quiz-final' };
 
-    // --- Estado de cambios sin guardar ---
-    let isDirty = false;
-    let suppressDirty = false;
-    let lastFocusedEl = null;
-
-    function markDirty() {
-      if (suppressDirty) return;
-      isDirty = true;
-      const badge = document.getElementById('dayDirtyBadge');
-      if (badge) badge.classList.add('is-visible');
-    }
-
-    function clearDirty() {
-      isDirty = false;
-      const badge = document.getElementById('dayDirtyBadge');
-      if (badge) badge.classList.remove('is-visible');
-    }
-
-    dayForm.addEventListener('input', markDirty);
-    dayForm.addEventListener('change', markDirty);
-
-    // ------------------------------------------------------------------------
-    // MODAL DE DÍA
-    // ------------------------------------------------------------------------
-    function openDayModal(dayNum = null, triggerEl = null) {
-      lastFocusedEl = triggerEl || document.activeElement;
-      suppressDirty = true;
-      currentEditingDayNum = dayNum;
-      subsectionsContainer.innerHTML = '';
-      galleryContainer.innerHTML = '';
-      videoFileNameLabel.textContent = '';
-      videoDataUrlInput.value = '';
-
-      if (dayNum) {
-        document.getElementById('dayModalTitle').textContent = `Editar Día ${dayNum}`;
-        const day = cachedDays.find(d => String(d.dayNumber) === String(dayNum));
-        if (day) {
-          document.getElementById('dayNumber').value = day.dayNumber;
-          document.getElementById('dayTitle').value = day.title;
-          document.getElementById('dayIcon').value = day.icon || 'tools';
-          document.getElementById('dayShortDesc').value = day.shortDesc || '';
-          document.getElementById('dayCoverUrl').value = day.coverImage || '';
-          document.getElementById('dayObjective').value = day.objective || '';
-          document.getElementById('dayIntroContent').value = day.introContent || '';
-
-          const sec = day.sections || {};
-          const theory = sec.theory || {};
-          document.getElementById('theoryMainTitle').value = theory.mainTitle || '';
-
-          if (theory.subsections && theory.subsections.length) {
-            theory.subsections.forEach(s => addSubsectionRow(s.subtitle, s.content));
-            // Se abre solo la primera para no convertir el formulario en un muro.
-            const firstSub = subsectionsContainer.querySelector('.sub-item');
-            if (firstSub) setSubsectionOpen(firstSub, true);
-          } else {
-            addSubsectionRow('', '', { open: true });
-          }
-
-          if (sec.gallery && sec.gallery.length) {
-            sec.gallery.forEach(g => addGalleryRow(g.image, g.caption));
-          } else {
-            addGalleryRow();
-          }
-
-          const vid = sec.video || {};
-          document.getElementById('videoTitle').value = vid.title || '';
-          videoTypeSelect.value = vid.type || 'url';
-          videoTypeSelect.dispatchEvent(new Event('change'));
-          if (vid.type === 'upload') {
-            videoDataUrlInput.value = vid.src || '';
-            if (vid.src) videoFileNameLabel.textContent = 'Archivo de video cargado';
-          } else {
-            document.getElementById('videoSrcUrl').value = vid.src || '';
-          }
-        }
-      } else {
-        document.getElementById('dayModalTitle').textContent = 'Crear Nuevo Día / Lección';
-        dayForm.reset();
-        document.getElementById('dayCoverUrl').value = '';
-        document.getElementById('dayCoverFile').value = '';
-        document.getElementById('dayObjective').value = '';
-        document.getElementById('dayIntroContent').value = '';
-        const nextNum = cachedDays.length ? Math.max(...cachedDays.map(d => d.dayNumber)) + 1 : 1;
-        document.getElementById('dayNumber').value = nextNum;
-        videoTypeSelect.value = 'url';
-        videoTypeSelect.dispatchEvent(new Event('change'));
-
-        addSubsectionRow('1. Conceptos Fundamentales', 'Escribe aquí la explicación teórica...', { open: true });
-        addGalleryRow('', 'Figura 1.1 — Descripción del componente.');
+      const match = raw.match(/^lecciones\/(nuevo|dia-(\d+))(?:\/([a-z-]+))?$/);
+      if (match) {
+        return {
+          view: 'editor',
+          day: match[1] === 'nuevo' ? null : parseInt(match[2], 10),
+          section: match[3] || 'general'
+        };
       }
-
-      const subtitle = document.getElementById('dayModalSubtitle');
-      if (subtitle) {
-        subtitle.textContent = dayNum
-          ? 'Modifica los datos y el contenido de este módulo.'
-          : 'Completa los datos del módulo y su contenido educativo.';
-      }
-
-      dayModal.classList.add('is-open');
-      suppressDirty = false;
-      clearDirty();
-
-      const shell = dayModal.querySelector('.admin-modal-content');
-      if (shell) setTimeout(() => shell.focus(), 40);
+      return { view: 'dashboard' };
     }
 
-    function closeDayModal() {
-      dayModal.classList.remove('is-open');
-      clearDirty();
-      if (lastFocusedEl && typeof lastFocusedEl.focus === 'function') {
-        lastFocusedEl.focus();
-      }
+    const routeKeyOf = (r) => [
+      r.view,
+      r.day === null || r.day === undefined ? '' : r.day,
+      r.section || ''
+    ].join('|');
+
+    function setActiveNav(view) {
+      const target = view === 'editor' ? 'lecciones' : view;
+      document.querySelectorAll('[data-admin-nav]').forEach(el => {
+        el.classList.toggle('is-active', el.dataset.adminNav === target);
+      });
     }
 
-    function requestCloseDayModal() {
-      if (isDirty && !confirm('Tienes cambios sin guardar en este módulo.\n¿Cerrar el editor y descartarlos?')) {
+    /* Vista sin editor: dashboard o gestor. No toca el hash. */
+    function showStaticView(id) {
+      const target = document.getElementById(id) || adminViews[0];
+      if (!target) return;
+      adminViews.forEach(v => { v.hidden = v !== target; });
+      document.body.classList.remove('editing');
+      setActiveNav(target.id);
+      if (topbarTitle) topbarTitle.textContent = VIEW_TITLES[target.id] || target.id;
+    }
+
+    function navigateTo(hash) {
+      if (location.hash === hash) {
+        applyRoute();
         return;
       }
-      closeDayModal();
+      location.hash = hash;   // dispara hashchange → applyRoute
     }
 
-    document.getElementById('btnNewDay').addEventListener('click', (e) => openDayModal(null, e.currentTarget));
-    document.getElementById('btnNewDayNav').addEventListener('click', (e) => openDayModal(null, e.currentTarget));
-    document.getElementById('closeDayModal').addEventListener('click', requestCloseDayModal);
-    document.getElementById('cancelDayModal').addEventListener('click', requestCloseDayModal);
+    function applyRoute() {
+      const route = parseRoute();
+      const key = routeKeyOf(route);
 
-    // Cerrar con Esc o con clic en el fondo (siempre con aviso si hay cambios)
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && dayModal.classList.contains('is-open')) {
+      if (key === currentRouteKey) return;
+      if (!authOk) { showStaticView('dashboard'); return; }
+
+      // Guarda de cambios sin guardar antes de abandonar un editor.
+      const estabaEditando = Boolean(currentRouteKey) &&
+        (currentRouteKey.startsWith('editor|') || currentRouteKey.startsWith('quiz-final|'));
+
+      if (estabaEditando && window.LessonEditor && LessonEditor.isDirty()) {
+        const salir = window.confirm(
+          'Tienes cambios sin guardar en este contenido.\n¿Salir y descartarlos?'
+        );
+        if (!salir) {
+          history.replaceState(null, '', appliedHash);
+          return;
+        }
+      }
+
+      window.LessonEditor?.unmount();
+      currentRouteKey = key;
+
+      const targetId = route.view;
+      const target = document.getElementById(targetId);
+      if (!target) return;
+
+      adminViews.forEach(v => { v.hidden = v !== target; });
+      document.body.classList.toggle('editing', targetId === 'editor' || targetId === 'quiz-final');
+      setActiveNav(targetId);
+
+      if (topbarTitle) {
+        topbarTitle.textContent = targetId === 'editor'
+          ? (route.day ? `Día ${route.day}` : 'Nuevo día')
+          : (VIEW_TITLES[targetId] || targetId);
+      }
+
+      if (targetId === 'editor') {
+        const abierto = window.LessonEditor?.mountLesson(route.day, route.section);
+        if (!abierto) {
+          // El día del hash no existe: se vuelve al gestor sin dejar la URL rota.
+          history.replaceState(null, '', '#lecciones');
+          currentRouteKey = null;
+          applyRoute();
+          return;
+        }
+      } else if (targetId === 'quiz-final') {
+        window.LessonEditor?.mountFinalQuiz();
+      }
+
+      appliedHash = location.hash || '#dashboard';
+      if (!location.hash) history.replaceState(null, '', appliedHash);
+      window.scrollTo({ top: 0 });
+    }
+
+    // Un clic en un enlace con hash y el botón atrás pasan por el mismo filtro.
+    window.addEventListener('hashchange', applyRoute);
+    window.addEventListener('popstate', applyRoute);
+
+    document.querySelectorAll('[data-admin-nav]').forEach(link => {
+      link.addEventListener('click', (e) => {
         e.preventDefault();
-        requestCloseDayModal();
-      }
-    });
-    dayModal.addEventListener('click', (e) => {
-      if (e.target === dayModal) requestCloseDayModal();
-    });
-
-    // Retención de foco dentro del modal mientras está abierto
-    dayModal.addEventListener('keydown', (e) => {
-      if (e.key !== 'Tab') return;
-      const focusables = Array.from(dayModal.querySelectorAll(
-        'button:not([disabled]), [href], input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-      )).filter(el => el.offsetParent !== null);
-      if (!focusables.length) return;
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault(); last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault(); first.focus();
-      }
-    });
-
-    // SUBMIT FORMULARIO DE DÍA
-    dayForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      const dayNumber = parseInt(document.getElementById('dayNumber').value, 10);
-      const title = document.getElementById('dayTitle').value.trim();
-      const icon = document.getElementById('dayIcon').value;
-      const shortDesc = document.getElementById('dayShortDesc').value.trim();
-      const coverImage = document.getElementById('dayCoverUrl').value.trim();
-      const objective = document.getElementById('dayObjective').value.trim();
-      const introContent = document.getElementById('dayIntroContent').value.trim();
-      const theoryMainTitle = document.getElementById('theoryMainTitle').value.trim();
-
-      if (!Number.isInteger(dayNumber) || dayNumber < 1) {
-        alert('El número de día debe ser un entero mayor que cero.');
-        return;
-      }
-      if (!title) {
-        alert('El título de la lección es obligatorio.');
-        return;
-      }
-
-      const subsections = [];
-      subsectionsContainer.querySelectorAll('.dynamic-card-item').forEach(card => {
-        const sub = card.querySelector('.sub-subtitle').value.trim();
-        const cnt = card.querySelector('.sub-content').value.trim();
-        if (sub || cnt) subsections.push({ subtitle: sub, content: cnt });
+        navigateTo('#' + link.dataset.adminNav);
+        closeSidebar();
       });
+    });
 
-      const gallery = [];
-      galleryContainer.querySelectorAll('.gallery-row-item').forEach(card => {
-        const img = card.querySelector('.gal-image-url').value.trim();
-        const cap = card.querySelector('.gal-caption').value.trim();
-        if (img) gallery.push({ image: img, caption: cap });
+    // Botones y enlaces que llevan a otra vista.
+    document.querySelectorAll('[data-goto]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        navigateTo('#' + btn.dataset.goto);
+        closeSidebar();
       });
+    });
 
-      const vType = videoTypeSelect.value;
-      const vTitle = document.getElementById('videoTitle').value.trim();
-      const rawSrc = vType === 'upload' ? videoDataUrlInput.value : document.getElementById('videoSrcUrl').value.trim();
+    // Alta de lección desde cualquiera de los atajos.
+    ['btnNewDay', 'btnNewDayNav', 'btnNewDayLessons'].forEach(id => {
+      document.getElementById(id)?.addEventListener('click', () => {
+        closeSidebar();
+        navigateTo('#lecciones/nuevo');
+      });
+    });
 
-      if (vType === 'url' && rawSrc && !Utils.formatVideoUrl(rawSrc)) {
-        alert('El enlace de video no es válido.\n\nUsa un enlace de YouTube, Vimeo o un archivo MP4/WebM.');
-        return;
-      }
+    // El atajo de la bandeja dentro de la tarjeta del dashboard.
+    document.querySelectorAll('[data-open-inbox]').forEach(btn => {
+      btn.addEventListener('click', openInbox);
+    });
 
-      // Retrieve existing quiz if available
-      const existingDay = cachedDays.find(d => String(d.dayNumber) === String(dayNumber));
-      const existingQuiz = (existingDay && existingDay.sections && existingDay.sections.quiz) ? existingDay.sections.quiz : [];
-
-      const dayObj = {
-        id: `day-${dayNumber}`,
-        dayNumber,
-        title,
-        icon,
-        coverImage,
-        shortDesc,
-        objective,
-        introContent,
-        sections: {
-          theory: { mainTitle: theoryMainTitle || title, subsections },
-          gallery,
-          video: { type: vType, src: rawSrc, title: vTitle },
-          quiz: existingQuiz
+    // Quiz final: la tarjeta de métricas también abre la vista.
+    const finalQuizCard = document.getElementById('cardFinalQuiz');
+    if (finalQuizCard) {
+      finalQuizCard.addEventListener('click', () => navigateTo('#quiz-final'));
+      finalQuizCard.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          navigateTo('#quiz-final');
         }
-      };
-
-      const submitBtn = dayForm.querySelector('button[type="submit"]');
-      const originalText = submitBtn.textContent;
-      try {
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Guardando en Base de Datos...';
-        await DbService.saveDay(dayObj);
-        closeDayModal();
-        await renderDashboard();
-      } catch (err) {
-        console.error('[Admin] Error al guardar el día:', err && err.code);
-        alert('No se pudo guardar la lección.\n\n' + describeError(err));
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = originalText;
-      }
-    });
-
-    // ------------------------------------------------------------------------
-    // MODAL DE CUESTIONARIO
-    // ------------------------------------------------------------------------
-    async function openQuizModal(dayNum) {
-      currentQuizDayNum = dayNum;
-      if (dayNum === 'FINAL') {
-        document.getElementById('quizModalTitle').textContent = 'Cuestionario Final del Curso (Evaluación Global de Certificación)';
-        const fQuiz = await DbService.getFinalQuiz();
-        tempQuizQuestions = JSON.parse(JSON.stringify(fQuiz || []));
-      } else {
-        const day = cachedDays.find(d => String(d.dayNumber) === String(dayNum));
-        if (!day) return;
-        document.getElementById('quizModalTitle').textContent = `Cuestionario del Día ${day.dayNumber}: ${day.title}`;
-        tempQuizQuestions = JSON.parse(JSON.stringify((day.sections && day.sections.quiz) || []));
-      }
-
-      renderQuizQuestions();
-      quizModal.classList.add('is-open');
+      });
     }
 
-    const btnManageFinalQuiz = document.getElementById('btnManageFinalQuiz');
-    const cardFinalQuiz = document.getElementById('cardFinalQuiz');
-    if (btnManageFinalQuiz) btnManageFinalQuiz.addEventListener('click', () => openQuizModal('FINAL'));
-    if (cardFinalQuiz) cardFinalQuiz.addEventListener('click', () => openQuizModal('FINAL'));
+    /* Puente para el editor: solo lo que necesita del panel. */
+    window.AdminApp = {
+      getDays: () => cachedDays,
+      refresh: (days) => renderDashboard(days),
+      navigate: navigateTo,
+      syncEditorRoute: (day, section) => {
+        const hash = day ? `#lecciones/dia-${day}/${section}` : `#lecciones/nuevo/${section}`;
+        history.replaceState(null, '', hash);
+        appliedHash = hash;
+        currentRouteKey = routeKeyOf({ view: 'editor', day: day ? Number(day) : null, section });
+        if (topbarTitle && day) topbarTitle.textContent = `Día ${day}`;
+      },
+      errorMessage: describeError
+    };
 
-    function renderQuizQuestions() {
-      if (!tempQuizQuestions.length) {
-        quizList.innerHTML = `<p class="quiz-empty-msg">Este cuestionario aún no tiene preguntas configuradas.</p>`;
+    // Vista inicial estática; la ruta real se aplica cuando hay sesión.
+    showStaticView('dashboard');
+
+    /* Últimas consultas en el dashboard. Si la RLS todavía no permite leer,
+       la tarjeta lo dice en vez de quedarse vacía. */
+    function renderDashInbox(failed) {
+      const cont = document.getElementById('dashInboxList');
+      if (!cont) return;
+
+      if (failed) {
+        Notify.state(cont, {
+          tone: 'error',
+          icon: 'fa-plug-circle-xmark',
+          title: 'No se pudieron cargar',
+          text: 'Revisa tu conexión e inténtalo de nuevo.'
+        });
         return;
       }
 
-      quizList.innerHTML = tempQuizQuestions.map((qObj, qIdx) => `
-        <div class="quiz-q-card">
-          <div class="quiz-q-head">
-            <strong>Pregunta ${qIdx + 1}</strong>
-            <button type="button" class="btn btn--ghost btn--sm btn--danger-ghost" data-delete-q="${qIdx}">&times; Eliminar Pregunta</button>
-          </div>
-          <div class="form-group">
-            <input type="text" value="${escapeHtml(qObj.q || '')}" data-q-title="${qIdx}" placeholder="Enunciado de la pregunta..." class="input-full">
-          </div>
-          <div class="quiz-options-grid">
-            ${(qObj.options || ['', '', '', '']).map((opt, oIdx) => `
-              <div class="quiz-opt-row">
-                <input type="radio" name="correct_${qIdx}" value="${oIdx}" ${qObj.correct === oIdx ? 'checked' : ''} data-correct-radio="${qIdx}">
-                <input type="text" value="${escapeHtml(opt)}" data-opt-text="${qIdx}_${oIdx}" placeholder="Opción ${oIdx + 1}" class="input-flex">
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      `).join('');
+      // Primero las que están sin responder: es lo que hay que atender.
+      const nuevas = inboxMessages.filter(m => inboxStatusOf(m) === 'nuevo');
+      const lista = (nuevas.length ? nuevas : inboxMessages).slice(0, 3);
 
-      quizList.querySelectorAll('[data-delete-q]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const idx = parseInt(btn.dataset.deleteQ, 10);
-          tempQuizQuestions.splice(idx, 1);
-          renderQuizQuestions();
+      if (!lista.length) {
+        Notify.state(cont, {
+          icon: 'fa-inbox',
+          title: 'Sin consultas todavía',
+          text: 'Los mensajes del formulario de contacto aparecerán aquí.'
+        });
+        return;
+      }
+
+      cont.innerHTML = lista.map(msg => {
+        const nombre = msg.name || 'Sin nombre';
+        const inicial = nombre.trim().charAt(0).toUpperCase() || '?';
+        return `
+          <button type="button" class="dash-msg" data-dash-msg="${escapeHtml(String(msg.id))}">
+            <span class="dash-msg-avatar" aria-hidden="true">${escapeHtml(inicial)}</span>
+            <span class="dash-msg-main">
+              <span class="dash-msg-top">
+                <span class="dash-msg-name">${escapeHtml(nombre)}</span>
+                <span class="dash-msg-time">${escapeHtml(inboxShortDate(msg.created_at))}</span>
+              </span>
+              <span class="dash-msg-text">${escapeHtml(msg.message || '')}</span>
+            </span>
+          </button>
+        `;
+      }).join('');
+
+      cont.querySelectorAll('[data-dash-msg]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          inboxSelectedId = btn.dataset.dashMsg;
+          await openInbox();
+          if (inboxSelectedId && inboxBody) inboxBody.classList.add('is-detail-open');
         });
       });
     }
 
-    document.getElementById('btnAddQuizQuestion').addEventListener('click', () => {
-      tempQuizQuestions.push({
-        q: '',
-        options: ['', '', '', ''],
-        correct: 0
-      });
-      renderQuizQuestions();
-    });
+    /* Estado del contenido: cuántos días tienen cada pieza y qué falta.
+       Es lo más útil de cara a publicar, más que un contador suelto. */
+    function renderDashStatus() {
+      const cont = document.getElementById('dashStatusBody');
+      if (!cont) return;
 
-    document.getElementById('saveQuizBtn').addEventListener('click', async () => {
-      // Se leen los valores del DOM antes de validar.
-      tempQuizQuestions.forEach((qObj, qIdx) => {
-        const titleInput = quizList.querySelector(`[data-q-title="${qIdx}"]`);
-        if (titleInput) qObj.q = titleInput.value.trim();
-
-        for (let oIdx = 0; oIdx < 4; oIdx++) {
-          const optInput = quizList.querySelector(`[data-opt-text="${qIdx}_${oIdx}"]`);
-          if (optInput) qObj.options[oIdx] = optInput.value.trim();
-        }
-
-        const checkedRadio = quizList.querySelector(`[data-correct-radio="${qIdx}"]:checked`);
-        if (checkedRadio) qObj.correct = parseInt(checkedRadio.value, 10);
-      });
-
-      // Validación mínima: sin enunciado ni dos opciones la pregunta es inútil.
-      const invalid = tempQuizQuestions.some(q =>
-        !q.q || (q.options || []).filter(o => o && o.trim()).length < 2
-      );
-      if (invalid) {
-        alert('Cada pregunta necesita un enunciado y al menos dos opciones con texto.');
+      const total = cachedDays.length;
+      if (!total) {
+        Notify.state(cont, {
+          icon: 'fa-folder-open',
+          title: 'Sin lecciones',
+          text: 'Crea la primera lección para ver el estado del contenido.'
+        });
         return;
       }
 
-      const saveQuizBtnEl = document.getElementById('saveQuizBtn');
-      const origText = saveQuizBtnEl.textContent;
-      try {
-        saveQuizBtnEl.disabled = true;
-        saveQuizBtnEl.textContent = 'Guardando en Base de Datos...';
-        if (currentQuizDayNum === 'FINAL') {
-          await DbService.saveFinalQuiz(tempQuizQuestions);
-        } else {
-          await DbService.saveQuiz(currentQuizDayNum, tempQuizQuestions);
-        }
-        quizModal.classList.remove('is-open');
-        await renderDashboard();
-      } catch (err) {
-        console.error('[Admin] Error al guardar el cuestionario:', err && err.code);
-        alert('No se pudo guardar el cuestionario.\n\n' + describeError(err));
-      } finally {
-        saveQuizBtnEl.disabled = false;
-        saveQuizBtnEl.textContent = origText;
-      }
-    });
+      const tieneTeoria = (d) => ((d.sections?.theory?.subsections) || []).length > 0;
+      const tieneGaleria = (d) => ((d.sections?.gallery) || []).length > 0;
+      const tieneVideo = (d) => Boolean(d.sections?.video?.src);
+      const tieneQuiz = (d) => ((d.sections?.quiz) || []).length > 0;
 
-    document.getElementById('closeQuizModal').addEventListener('click', () => quizModal.classList.remove('is-open'));
-    document.getElementById('cancelQuizModal').addEventListener('click', () => quizModal.classList.remove('is-open'));
+      const filas = [
+        { label: 'Con teoría', n: cachedDays.filter(tieneTeoria).length },
+        { label: 'Con galería de imágenes', n: cachedDays.filter(tieneGaleria).length },
+        { label: 'Con video', n: cachedDays.filter(tieneVideo).length },
+        { label: 'Con cuestionario', n: cachedDays.filter(tieneQuiz).length }
+      ];
+
+      const completos = cachedDays.filter(d =>
+        tieneTeoria(d) && tieneGaleria(d) && tieneVideo(d) && tieneQuiz(d)
+      ).length;
+      const pct = Math.round((completos / total) * 100);
+
+      cont.innerHTML = `
+        <div class="dash-progress">
+          <div class="dash-progress-top">
+            <span class="dash-progress-label">Lecciones completas</span>
+            <span class="dash-progress-value">${completos} de ${total}</span>
+          </div>
+          <div class="dash-progress-bar">
+            <div class="dash-progress-fill" data-status-fill="${pct}"></div>
+          </div>
+        </div>
+        <div class="dash-checks">
+          ${filas.map(f => {
+            const ok = f.n === total;
+            return `
+              <div class="dash-check ${ok ? 'dash-check--ok' : 'dash-check--missing'}">
+                <i class="fa-solid ${ok ? 'fa-circle-check' : 'fa-circle-exclamation'}" aria-hidden="true"></i>
+                <span>${escapeHtml(f.label)}</span>
+                <span class="dash-check-count">${f.n}/${total}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+
+      // Ancho de la barra por CSSOM (la CSP no permite style="" en el marcado).
+      const fill = cont.querySelector('[data-status-fill]');
+      if (fill) fill.style.width = `${pct}%`;
+    }
+
+    /* Previsualización: tarjetas de lectura con la portada, el resumen y qué
+       piezas de contenido tiene cada día. Al pulsar se abre el editor. */
+    let previewErrorBound = false;
+
+    function renderDashPreview() {
+      const grid = document.getElementById('dashPreviewGrid');
+      if (!grid) return;
+
+      // Si una portada no carga, se sustituye por el emblema del día.
+      if (!previewErrorBound) {
+        grid.addEventListener('error', (e) => {
+          const img = e.target;
+          if (!img || img.tagName !== 'IMG') return;
+          const glyph = document.createElement('span');
+          glyph.className = 'preview-glyph';
+          glyph.innerHTML = icon(img.dataset.icon || 'tools');
+          img.replaceWith(glyph);
+        }, true);
+        previewErrorBound = true;
+      }
+
+      if (!cachedDays.length) {
+        Notify.state(grid, {
+          icon: 'fa-folder-open',
+          title: 'Todavía no hay lecciones',
+          text: 'Crea la primera para ver aquí cómo quedará el curso.',
+          actionLabel: 'Crear la primera lección',
+          onAction: () => navigateTo('#lecciones/nuevo')
+        });
+        return;
+      }
+
+      grid.innerHTML = cachedDays.map(d => {
+        const sec = d.sections || {};
+        const sub = (sec.theory && sec.theory.subsections ? sec.theory.subsections.length : 0);
+        const gal = (sec.gallery || []).length;
+        const vid = Boolean(sec.video && sec.video.src);
+        const quiz = (sec.quiz || []).length;
+
+        const chip = (ok, texto) => `
+          <span class="preview-chip${ok ? '' : ' preview-chip--missing'}">
+            <i class="fa-solid ${ok ? 'fa-circle-check' : 'fa-circle-xmark'}" aria-hidden="true"></i>${texto}
+          </span>`;
+
+        const chips = [
+          chip(sub > 0, sub > 0 ? `${sub} teoría` : 'Sin teoría'),
+          chip(gal > 0, gal > 0 ? `${gal} imágenes` : 'Sin galería'),
+          chip(vid, vid ? 'Video' : 'Sin video'),
+          chip(quiz > 0, quiz > 0 ? `${quiz} preguntas` : 'Sin quiz')
+        ].join('');
+
+        const cover = Utils.safeImageUrl(d.coverImage || '');
+        const miniatura = cover
+          ? `<img src="${escapeHtml(cover)}" alt="" loading="lazy" data-icon="${escapeHtml(d.icon || 'tools')}">`
+          : `<span class="preview-glyph">${icon(d.icon || 'tools')}</span>`;
+
+        return `
+          <button type="button" class="preview-card" data-preview-edit="${escapeHtml(String(d.dayNumber))}">
+            <span class="preview-thumb">
+              ${miniatura}
+              <span class="preview-day">Día ${escapeHtml(String(d.dayNumber))}</span>
+            </span>
+            <span class="preview-body">
+              <span class="preview-title">${escapeHtml(d.title)}</span>
+              <span class="preview-desc">${escapeHtml(d.shortDesc || '')}</span>
+              <span class="preview-chips">${chips}</span>
+            </span>
+            <span class="preview-cta">
+              Editar contenido
+              <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+            </span>
+          </button>
+        `;
+      }).join('');
+
+      grid.querySelectorAll('[data-preview-edit]').forEach(btn => {
+        btn.addEventListener('click', () => navigateTo(`#lecciones/dia-${btn.dataset.previewEdit}`));
+      });
+    }
 
     // Sincronizar datos desde la BD
     document.getElementById('btnResetData').addEventListener('click', async () => {
@@ -880,18 +935,28 @@
       const isAdmin = Boolean(session && session.isAdmin);
 
       if (isAdmin) {
+        authOk = true;
         loginOverlay.classList.add('is-hidden');
         document.body.classList.remove('is-locked');
         await renderDashboard();
+        // La ruta del hash se aplica aquí: el editor no debe montarse antes de
+        // saber que hay sesión de administrador.
+        currentRouteKey = null;
+        applyRoute();
       } else {
+        authOk = false;
+        currentRouteKey = null;
         if (session && !session.isAdmin) {
           await DbService.logout();
         }
+        window.LessonEditor?.unmount();
+        window.LoginAnim?.reset?.();
         loginOverlay.classList.remove('is-hidden');
         document.body.classList.add('is-locked');
         loginError.classList.remove('is-visible');
         cachedDays = [];
         renderTable();
+        showStaticView('dashboard');
       }
       return isAdmin;
     }
@@ -904,8 +969,34 @@
         CONNECTION: 'No se pudo iniciar sesión en este momento. Inténtalo más tarde.'
       };
 
+      /* Freno a la fuerza bruta en el cliente.
+         Es una barrera de defensa en profundidad, no la protección real: vive
+         en memoria y se borra al recargar. El límite efectivo lo aplica
+         Supabase Auth en el servidor (5 intentos por email cada 5 minutos).
+         Aun así frena el caso más común, que es alguien probando a mano. */
+      const MAX_INTENTOS = 5;
+      const BLOQUEO_MS = 30000;
+      let intentosFallidos = 0;
+      let bloqueadoHasta = 0;
+
+      function segundosDeBloqueo() {
+        return Math.max(0, Math.ceil((bloqueadoHasta - Date.now()) / 1000));
+      }
+
+      function mostrarError(mensaje) {
+        loginError.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> ${escapeHtml(mensaje)}`;
+        loginError.classList.add('is-visible');
+      }
+
       loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+
+        const espera = segundosDeBloqueo();
+        if (espera > 0) {
+          mostrarError(`Demasiados intentos fallidos. Espera ${espera} segundo${espera === 1 ? '' : 's'}.`);
+          return;
+        }
+
         const email = document.getElementById('loginUser').value.trim();
         const pass = document.getElementById('loginPass').value;
 
@@ -915,6 +1006,7 @@
         const textoOriginal = submitBtn.innerHTML;
         submitBtn.disabled = true;
         submitBtn.textContent = 'Verificando...';
+        window.LoginAnim?.playLoading?.();
 
         const { user: authUser, error } = await DbService.login(email, pass);
 
@@ -922,13 +1014,26 @@
         submitBtn.innerHTML = textoOriginal;
 
         if (authUser) {
+          intentosFallidos = 0;
+          bloqueadoHasta = 0;
           loginError.classList.remove('is-visible');
           loginForm.reset();
+          if (window.LoginAnim?.playSuccess) {
+            await window.LoginAnim.playSuccess();
+          }
           await checkAuth();
         } else {
-          const mensaje = MENSAJES_ERROR[error && error.code] || MENSAJES_ERROR.INVALID_CREDENTIALS;
-          loginError.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> ${escapeHtml(mensaje)}`;
-          loginError.classList.add('is-visible');
+          window.LoginAnim?.playError?.();
+          intentosFallidos += 1;
+          if (intentosFallidos >= MAX_INTENTOS) {
+            bloqueadoHasta = Date.now() + BLOQUEO_MS;
+            intentosFallidos = 0;
+            mostrarError(`Demasiados intentos fallidos. Espera ${BLOQUEO_MS / 1000} segundos.`);
+          } else {
+            const mensaje = MENSAJES_ERROR[error && error.code] || MENSAJES_ERROR.INVALID_CREDENTIALS;
+            const restantes = MAX_INTENTOS - intentosFallidos;
+            mostrarError(`${mensaje} ${restantes === 1 ? 'Queda 1 intento.' : `Quedan ${restantes} intentos.`}`);
+          }
           document.getElementById('loginPass').value = '';
           document.getElementById('loginPass').focus();
         }
@@ -938,6 +1043,7 @@
     if (logoutBtn) {
       logoutBtn.addEventListener('click', async () => {
         await DbService.logout();
+        window.LoginAnim?.reset?.();
         await checkAuth();
       });
     }

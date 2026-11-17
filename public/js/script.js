@@ -133,8 +133,28 @@ const RevealModule = (() => {
 /* --------------------------------------------------------------------------
    CURSOS — Flujo progresivo: Catálogo → Intro → Etapas → Siguiente Día
    -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+   ESTILOS DINÁMICOS SIN ATRIBUTOS style
+   La CSP no permite `style="..."` escrito en el marcado (style-src sin
+   'unsafe-inline'). Los pocos valores que dependen de datos —el ancho de la
+   barra de progreso y el color del nivel— viajan en atributos `data-*` y se
+   aplican por CSSOM, que la CSP sí permite.
+   -------------------------------------------------------------------------- */
+function applyDynamicStyles(root) {
+  if (!root) return;
+  root.querySelectorAll('[data-fill-pct]').forEach(el => {
+    el.style.width = `${el.dataset.fillPct}%`;
+  });
+  root.querySelectorAll('[data-border-color]').forEach(el => {
+    el.style.borderColor = el.dataset.borderColor;
+  });
+  root.querySelectorAll('[data-bg-color]').forEach(el => {
+    el.style.backgroundColor = el.dataset.bgColor;
+  });
+}
+
 const CoursesModule = (() => {
-  let treeNavEl, workspaceEl;
+  let treeNavEl, workspaceEl, lmsSidebarEl;
   let activeDayNum = 1;
   let activeStage = 'intro'; // 'intro' | 'theory' | 'gallery' | 'video' | 'quiz'
 
@@ -148,11 +168,23 @@ const CoursesModule = (() => {
   };
 
   // Progress tracking
-  const PROGRESS_KEY = 'mecanica_progress_v1';
+  const PROGRESS_KEY = 'meka_progress_v1';
+  const LEGACY_PROGRESS_KEY = 'mecanica_progress_v1';
   let courseProgress = {};
 
   function loadProgress() {
-    try { courseProgress = JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; } catch(e) { courseProgress = {}; }
+    try {
+      const stored = localStorage.getItem(PROGRESS_KEY);
+      if (stored) { courseProgress = JSON.parse(stored) || {}; return; }
+
+      /* Migración única desde la clave con el nombre anterior. Se copia al
+         formato nuevo y se elimina para no dejar datos huérfanos. */
+      const legacy = localStorage.getItem(LEGACY_PROGRESS_KEY);
+      if (!legacy) { courseProgress = {}; return; }
+      courseProgress = JSON.parse(legacy) || {};
+      saveProgress();
+      localStorage.removeItem(LEGACY_PROGRESS_KEY);
+    } catch(e) { courseProgress = {}; }
   }
   function saveProgress() {
     try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(courseProgress)); } catch(e) {}
@@ -175,6 +207,92 @@ const CoursesModule = (() => {
     return Math.round((completed / STAGE_SEQUENCE.length) * 100);
   }
 
+  /* ------------------------------------------------------------------------
+     PROGRESO POR SUBSECCIÓN
+     Se guarda en el MISMO objeto de localStorage que las etapas (una sola
+     fuente de verdad), no en la base de datos ni en el panel.
+     ------------------------------------------------------------------------ */
+  function getTopicProgress(day) {
+    const total = theorySubsections(day).length;
+    const record = courseProgress[day.id] || {};
+    const stored = Array.isArray(record.completedTopics) ? record.completedTopics : [];
+    const done = new Set(
+      stored.filter(i => Number.isInteger(i) && i >= 0 && i < total)
+    );
+
+    /* Compatibilidad: quien completó Teoría con el sistema anterior ya leyó
+       todas las subsecciones. Sin dato por tema, se interpreta completo para
+       no devolver a pendiente un avance histórico. */
+    if (total && done.size === 0 && isStageComplete(day.id, 'theory')) {
+      for (let i = 0; i < total; i += 1) done.add(i);
+    }
+
+    return {
+      done,
+      total,
+      pct: total ? Math.round((done.size / total) * 100) : 0
+    };
+  }
+
+  function isTheoryComplete(day) {
+    const { done, total } = getTopicProgress(day);
+    return total > 0 && done.size >= total;
+  }
+
+  /* Marca un tema como leído. La etapa Teoría solo se completa cuando no queda
+     ninguna subsección pendiente. Devuelve true si hubo cambio. */
+  function markTopicComplete(day, index) {
+    const { done, total } = getTopicProgress(day);
+    if (!total || done.has(index)) return false;
+
+    if (!courseProgress[day.id]) courseProgress[day.id] = { completedStages: [] };
+    const next = new Set(done);
+    next.add(index);
+    courseProgress[day.id].completedTopics = [...next].sort((a, b) => a - b);
+
+    if (next.size >= total) {
+      const stages = courseProgress[day.id].completedStages || [];
+      if (!stages.includes('theory')) stages.push('theory');
+      courseProgress[day.id].completedStages = stages;
+    }
+
+    saveProgress();
+    return true;
+  }
+
+  /* ------------------------------------------------------------------------
+     TEMA DE TEORÍA SELECCIONADO
+     Es estado de LECTURA, no de progreso: no toca `completedStages` ni el
+     porcentaje del curso. Se guarda por día para poder retomar la lectura al
+     cambiar de etapa y volver.
+     ------------------------------------------------------------------------ */
+  const theoryIndexByDay = {};
+
+  function theorySubsections(day) {
+    return (day && day.sections && day.sections.theory && day.sections.theory.subsections) || [];
+  }
+
+  function getTheoryIndex(day) {
+    const total = theorySubsections(day).length;
+    if (!total) return 0;
+    const saved = theoryIndexByDay[day.id];
+    return Number.isInteger(saved) && saved >= 0 && saved < total ? saved : 0;
+  }
+
+  function setTheoryIndex(day, index) {
+    const total = theorySubsections(day).length;
+    if (!total) return;
+    theoryIndexByDay[day.id] = Math.max(0, Math.min(Number(index) || 0, total - 1));
+  }
+
+  /* En tablet y móvil el índice ocupa toda la columna: se pliega al elegir. */
+  function collapseIndexOnMobile() {
+    if (!lmsSidebarEl) return;
+    if (!window.matchMedia('(max-width: 1024px)').matches) return;
+    lmsSidebarEl.classList.add('is-collapsed');
+    document.getElementById('lmsIndexToggle')?.setAttribute('aria-expanded', 'false');
+  }
+
   let cachedDays = null;
   function getAllDays() { return cachedDays || []; }
 
@@ -191,7 +309,7 @@ const CoursesModule = (() => {
             <span>Mi Curso</span>
           </span>
           <span class="tree-inline">
-            <span class="badge">${days.length} Días</span>
+            <span class="badge">${days.length} ${days.length === 1 ? 'Día' : 'Días'}</span>
             <i class="fa-solid fa-chevron-down tree-header-caret"></i>
           </span>
         </div>
@@ -204,6 +322,54 @@ const CoursesModule = (() => {
 
             // Stage status items
             const stages = ['intro', ...STAGE_SEQUENCE];
+
+            /* Temas de teoría: solo los del día abierto. El resto de días los
+               recibe al desplegarse, así el índice no crece sin control. */
+            const topics = isCurrent ? theorySubsections(d) : [];
+            const topicIndex = getTheoryIndex(d);
+            const theoryActive = isCurrent && activeStage === 'theory';
+            const topicProgress = getTopicProgress(d);
+            const numDigits = String(Math.max(topics.length, 1)).length;
+
+            const topicBlock = topics.length ? `
+              <div class="tree-topic-list" role="group" aria-label="Temas de teoría del día ${escapeHtml(d.dayNumber)}" data-digits="${numDigits}">
+                ${topics.map((sub, i) => {
+                  const active = theoryActive && i === topicIndex;
+                  const raw = (sub.subtitle || '').trim() || `Tema ${i + 1}`;
+                  /* El número vive dentro del título almacenado ("11. Conclusión").
+                     Se separa solo para pintarlo en una columna de ancho fijo:
+                     así "9" y "11" no desplazan el texto. Solo se interpreta
+                     como número de tema si encaja con su posición; un título que
+                     empiece por otra cifra se deja intacto. */
+                  const numbered = raw.match(/^(\d+)[.)]\s+(.*)$/);
+                  const parsed = numbered ? Number(numbered[1]) : NaN;
+                  const useOwnNumber = Number.isInteger(parsed) && parsed >= 1 && parsed <= topics.length;
+                  const number = useOwnNumber ? numbered[1] : String(i + 1);
+                  const label = useOwnNumber ? (numbered[2] || raw) : raw;
+                  const complete = topicProgress.done.has(i);
+                  const stateLabel = complete ? 'Completado' : active ? 'En curso' : 'Pendiente';
+                  const stateIcon = complete
+                    ? '<i class="fa-solid fa-circle-check" aria-hidden="true"></i>'
+                    : active
+                      ? '<i class="fa-solid fa-circle-play" aria-hidden="true"></i>'
+                      : '<i class="fa-regular fa-circle" aria-hidden="true"></i>';
+                  const stateClass = complete ? ' is-complete' : active ? ' is-current' : '';
+
+                  return `
+                    <button type="button" class="tree-topic-item${active ? ' is-active' : ''}${stateClass}"
+                      data-topic-index="${i}" data-day="${d.dayNumber}"
+                      aria-current="${active ? 'true' : 'false'}"
+                      title="${escapeHtml(raw)}">
+                      <span class="tree-topic-state tree-topic-state--${complete ? 'done' : active ? 'current' : 'pending'}"
+                            role="img" aria-label="${stateLabel}">${stateIcon}</span>
+                      <span class="tree-topic-num">${escapeHtml(number)}</span>
+                      <span class="tree-topic-label">${escapeHtml(label)}</span>
+                    </button>
+                  `;
+                }).join('')}
+              </div>
+            ` : '';
+
             const stageItems = stages.map(stage => {
               const isDoneStage = stage === 'intro' ? isStarted(d.id) : isStageComplete(d.id, stage);
               const isActiveStage = isCurrent && activeStage === stage;
@@ -219,12 +385,20 @@ const CoursesModule = (() => {
                 statusClass = '';
               }
               const label = STAGE_META[stage].label;
+              const theoryDone = topicProgress.total > 0 && topicProgress.done.size >= topicProgress.total;
+              const stageMeta = stage === 'theory' && topicProgress.total
+                ? `<span class="tree-stage-meta${theoryDone ? ' is-complete' : ''}">${
+                    theoryDone ? 'Completada' : `${topicProgress.done.size}/${topicProgress.total}`
+                  }</span>`
+                : '';
               return `
                 <button class="tree-stage-item ${statusClass}"
                   data-stage-target="${stage}" data-day="${d.dayNumber}">
                   ${iconHtml}
-                  <span>${label}</span>
+                  <span class="tree-stage-label">${label}</span>
+                  ${stageMeta}
                 </button>
+                ${stage === 'theory' ? topicBlock : ''}
               `;
             }).join('');
 
@@ -278,6 +452,7 @@ const CoursesModule = (() => {
           treeNavEl.querySelectorAll('.tree-day-group').forEach(g => g.classList.remove('is-expanded'));
           group.classList.add('is-expanded');
         }
+        collapseIndexOnMobile();
         showCourseIntro(dayNum);
       });
     });
@@ -288,6 +463,9 @@ const CoursesModule = (() => {
         e.stopPropagation();
         const dayNum = btn.getAttribute('data-day');
         const stageKey = btn.getAttribute('data-stage-target');
+        // Se pliega antes de pintar: si se hace después, el documento cambia
+        // de alto y el desplazamiento al contenido queda desfasado.
+        collapseIndexOnMobile();
         if (stageKey === 'intro') {
           showCourseIntro(dayNum);
         } else {
@@ -296,9 +474,25 @@ const CoursesModule = (() => {
       });
     });
 
+    // Tema de teoría: abre la etapa directamente en ese tema.
+    treeNavEl.querySelectorAll('[data-topic-index]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const dayNum = btn.getAttribute('data-day');
+        const day = getAllDays().find(d => String(d.dayNumber) === String(dayNum));
+        if (!day) return;
+        setTheoryIndex(day, Number(btn.getAttribute('data-topic-index')));
+        collapseIndexOnMobile();
+        showLessonStage(dayNum, 'theory');
+      });
+    });
+
     // Final quiz
     const finalBtn = treeNavEl.querySelector('#btnTreeFinalQuiz');
-    if (finalBtn) finalBtn.addEventListener('click', () => openFinalQuiz());
+    if (finalBtn) finalBtn.addEventListener('click', () => {
+      collapseIndexOnMobile();
+      openFinalQuiz();
+    });
   }
 
   // === COURSE INTRO SCREEN ===
@@ -378,11 +572,12 @@ const CoursesModule = (() => {
     const objective = (day.objective || '').trim();
     const introContent = (day.introContent || '').trim();
 
-    // Portada del módulo: fotografía real si el día la define; si no, esquema vectorial.
+    // Portada del módulo: fotografía real si el día la define; si no, emblema
+    // con el icono de su categoría (nunca una ilustración dibujada).
     const coverImage = safeImageUrl(day.coverImage);
     const heroVisual = coverImage
       ? `<img class="ci-cover-img" src="${escapeHtml(coverImage)}" alt="Portada del módulo: ${escapeHtml(day.title)}" decoding="async">`
-      : buildDiagram(day.icon, [], '#F77F00');
+      : moduleGlyph(day.icon);
 
     workspaceEl.innerHTML = `
       <div class="course-intro-screen">
@@ -393,7 +588,7 @@ const CoursesModule = (() => {
             <span class="lps-step">${completedCount} de ${STAGE_SEQUENCE.length} etapas completadas</span>
           </div>
           <div class="lps-bar-wrap">
-            <div class="lps-bar-fill" style="width: ${pct}%;"></div>
+            <div class="lps-bar-fill" data-fill-pct="${pct}"></div>
           </div>
           <span class="lps-pct">${pct}% completado</span>
         </div>
@@ -422,7 +617,7 @@ const CoursesModule = (() => {
                 <p>${escapeHtml(objective)}</p>
               </div>` : ''}
             </div>
-            <div class="ci-icon-visual${coverImage ? ' ci-icon-visual--photo' : ''}"${coverImage ? '' : ' aria-hidden="true"'}>
+            <div class="ci-icon-visual${coverImage ? ' ci-icon-visual--photo' : ''}" data-icon-key="${escapeHtml(day.icon || 'tools')}"${coverImage ? '' : ' aria-hidden="true"'}>
               ${heroVisual}
             </div>
           </div>
@@ -482,6 +677,7 @@ const CoursesModule = (() => {
         </div>
       </div>
     `;
+    applyDynamicStyles(workspaceEl);
 
     // CTA listeners
     const startBtn = workspaceEl.querySelector('[data-start-day]');
@@ -493,6 +689,8 @@ const CoursesModule = (() => {
           const firstIncomplete = STAGE_SEQUENCE.find(s => !isStageComplete(day.id, s)) || STAGE_SEQUENCE[0];
           showLessonStage(dn, firstIncomplete);
         } else {
+          // Comenzar de cero: la lectura arranca en el primer tema.
+          setTheoryIndex(day, 0);
           showLessonStage(dn, 'theory');
         }
       });
@@ -502,6 +700,7 @@ const CoursesModule = (() => {
       restartBtn.addEventListener('click', () => {
         const dn = restartBtn.getAttribute('data-restart-day');
         courseProgress[day.id] = { completedStages: [] };
+        delete theoryIndexByDay[day.id];
         saveProgress();
         renderTreeNav();
         showCourseIntro(dn);
@@ -511,6 +710,152 @@ const CoursesModule = (() => {
     renderTreeNav();
 
     if (opts.scroll !== false) scrollToWorkspace();
+  }
+
+  // === TEORÍA: UN TEMA A LA VEZ ===
+  /* La teoría se lee como un artículo: un tema por vista, con su ubicación y
+     navegación anterior/siguiente. El contenido y su orden vienen intactos de
+     la base de datos; aquí solo se elige cuál se muestra. */
+  function renderTheoryStage(day) {
+    const subs = theorySubsections(day);
+
+    if (!subs.length) {
+      return `
+        <div class="theory-reader theory-reader--empty">
+          <header class="theory-head">
+            <p class="theory-kicker">
+              <span>Día ${escapeHtml(day.dayNumber)}</span>
+              <span aria-hidden="true">/</span>
+              <span>Teoría</span>
+            </p>
+            <h2 class="theory-topic-title" tabindex="-1">Teoría</h2>
+            <p class="theory-empty">Este módulo todavía no tiene contenido teórico.</p>
+          </header>
+          <footer class="theory-foot">
+            <nav class="theory-pager" aria-label="Continuar al siguiente contenido">
+              <button type="button" class="theory-pager-btn theory-pager-btn--next theory-pager-btn--stage" data-topic-next-stage>
+                <span class="theory-pager-kicker">Sin contenido teórico</span>
+                <span class="theory-pager-title">Continuar a Guía visual</span>
+              </button>
+            </nav>
+          </footer>
+        </div>
+      `;
+    }
+
+    const index = getTheoryIndex(day);
+    const total = subs.length;
+    const current = subs[index];
+    const prev = index > 0 ? subs[index - 1] : null;
+    const next = index < total - 1 ? subs[index + 1] : null;
+    const progress = getTopicProgress(day);
+    const doneCount = progress.done.size;
+    const isDone = progress.done.has(index);
+
+    const nameOf = (sub, fallback) => escapeHtml(((sub && sub.subtitle) || '').trim() || fallback);
+    const title = nameOf(current, `Tema ${index + 1}`);
+
+    return `
+      <article class="theory-reader" id="stage-theory-${escapeHtml(day.dayNumber)}" aria-labelledby="theory-topic-title">
+        <header class="theory-head">
+          <p class="theory-kicker">
+            <span>Día ${escapeHtml(day.dayNumber)}</span>
+            <span aria-hidden="true">/</span>
+            <span>Teoría</span>
+          </p>
+          <h2 class="theory-topic-title" id="theory-topic-title" tabindex="-1">${title}</h2>
+          <div class="theory-meta">
+            <span class="theory-count">Tema ${index + 1} de ${total}</span>
+            <span class="theory-module">${escapeHtml(day.title)}</span>
+          </div>
+        </header>
+
+        <div class="theory-body">${RichText.render(current.content)}</div>
+
+        <footer class="theory-foot">
+          <div class="theory-complete">
+            <div class="theory-complete-info">
+              <p class="theory-complete-count">${doneCount} de ${total} temas completados</p>
+              <div class="theory-bar" role="progressbar"
+                   aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${doneCount}"
+                   aria-label="Temas completados de la teoría">
+                <span class="theory-bar-fill" data-fill-pct="${progress.pct}"></span>
+              </div>
+            </div>
+            <button type="button" class="theory-complete-btn${isDone ? ' is-done' : ''}"
+                    data-topic-complete aria-pressed="${isDone ? 'true' : 'false'}">
+              <i class="fa-solid ${isDone ? 'fa-circle-check' : 'fa-check'}" aria-hidden="true"></i>
+              ${isDone ? 'Tema completado' : 'Marcar tema como completado'}
+            </button>
+          </div>
+
+          <nav class="theory-pager" aria-label="Navegación entre temas de teoría">
+            ${prev ? `
+              <button type="button" class="theory-pager-btn" data-topic-prev="${index - 1}">
+                <span class="theory-pager-kicker"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Anterior</span>
+                <span class="theory-pager-title">${nameOf(prev, `Tema ${index}`)}</span>
+              </button>` : ''}
+            ${next ? `
+              <button type="button" class="theory-pager-btn theory-pager-btn--next" data-topic-next="${index + 1}">
+                <span class="theory-pager-kicker">Siguiente <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span>
+                <span class="theory-pager-title">${nameOf(next, `Tema ${index + 2}`)}</span>
+              </button>` : `
+              <button type="button" class="theory-pager-btn theory-pager-btn--next theory-pager-btn--stage" data-topic-next-stage>
+                <span class="theory-pager-kicker">Fin de la teoría</span>
+                <span class="theory-pager-title">Continuar a Guía visual</span>
+              </button>`}
+          </nav>
+        </footer>
+      </article>
+    `;
+  }
+
+  function bindTheoryNavigation(day, dayNum, opts = {}) {
+    const goTo = (index) => {
+      setTheoryIndex(day, index);
+      showLessonStage(dayNum, 'theory');
+    };
+
+    const prevBtn = workspaceEl.querySelector('[data-topic-prev]');
+    if (prevBtn) {
+      prevBtn.addEventListener('click', () => goTo(Number(prevBtn.getAttribute('data-topic-prev'))));
+    }
+
+    const nextBtn = workspaceEl.querySelector('[data-topic-next]');
+    if (nextBtn) {
+      nextBtn.addEventListener('click', () => goTo(Number(nextBtn.getAttribute('data-topic-next'))));
+    }
+
+    /* Finalización explícita del tema: leer no marca nada. Se guarda en el
+       mismo progreso local y se repinta para actualizar índice, contador y
+       etapa (que solo pasa a verde al llegar a 100%). */
+    const completeBtn = workspaceEl.querySelector('[data-topic-complete]');
+    if (completeBtn) {
+      completeBtn.addEventListener('click', () => {
+        const index = getTheoryIndex(day);
+        if (!markTopicComplete(day, index)) return;
+        showLessonStage(dayNum, 'theory', { scroll: false, focusTitle: false });
+        workspaceEl.querySelector('[data-topic-complete]')?.focus({ preventScroll: true });
+      });
+    }
+
+    /* Último tema: solo se completa la etapa al continuar si la teoría no
+       tiene subsecciones que marcar. Con temas, la etapa la cierra el 100%. */
+    const stageBtn = workspaceEl.querySelector('[data-topic-next-stage]');
+    if (stageBtn) {
+      stageBtn.addEventListener('click', () => {
+        if (!theorySubsections(day).length) markStageComplete(day.id, 'theory');
+        renderTreeNav();
+        showLessonStage(dayNum, 'gallery');
+      });
+    }
+
+    // El título recibe el foco al cambiar de tema: se anuncia el contenido
+    // nuevo sin obligar al lector de pantalla a recorrer el índice.
+    if (opts.focusTitle !== false) {
+      const heading = workspaceEl.querySelector('.theory-topic-title');
+      if (heading) heading.focus({ preventScroll: true });
+    }
   }
 
   // === SINGLE STAGE LESSON VIEW ===
@@ -534,29 +879,13 @@ const CoursesModule = (() => {
     const nextDay = currentDayIndex < days.length - 1 ? days[currentDayIndex + 1] : null;
 
     const sec = day.sections || {};
-    const theoryObj = sec.theory || {};
     const galleryArr = sec.gallery || [];
     const videoObj = sec.video || {};
 
     // Stage content HTML
     let stageContentHtml = '';
     if (stageKey === 'theory') {
-      stageContentHtml = `
-        <div class="day-stage-card" id="stage-theory-${day.dayNumber}">
-          <div class="stage-header-tag stage--theory">
-            <i class="fa-solid fa-book-open"></i> ETAPA 1: TEORÍA Y FUNDAMENTOS
-          </div>
-          <h4 class="stage-main-title">${escapeHtml(theoryObj.mainTitle || 'Manual y Explicación Teórica')}</h4>
-          <div class="subsections-tree">
-            ${(theoryObj.subsections || []).map(sub => `
-              <div class="subsection-item">
-                <h5 class="subsection-title"><i class="fa-solid fa-folder-open"></i> ${escapeHtml(sub.subtitle)}</h5>
-                <div class="subsection-body">${RichText.render(sub.content)}</div>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      `;
+      stageContentHtml = renderTheoryStage(day);
     } else if (stageKey === 'gallery') {
       stageContentHtml = `
         <div class="day-stage-card" id="stage-gallery-${day.dayNumber}">
@@ -568,13 +897,14 @@ const CoursesModule = (() => {
             ${galleryArr.map((g, idx) => {
               const caption = escapeHtml(g.caption || 'Explicación técnica del componente.');
               const image = safeImageUrl(g.image);
+              // Solo es ampliable si hay imagen: sin archivo, el visor se abriría vacío.
               return `
-              <div class="gallery-explain-card" data-lightbox data-caption="${caption}">
-                <span class="zoom-hint">${ICONS.zoom}</span>
-                <div class="gallery-img-container">
+              <div class="gallery-explain-card${image ? '' : ' gallery-explain-card--empty'}"${image ? ` data-lightbox data-caption="${caption}"` : ''}>
+                ${image ? `<span class="zoom-hint">${ICONS.zoom}</span>` : ''}
+                <div class="gallery-img-container" data-icon-key="${escapeHtml(day.icon || 'tools')}">
                   ${image
                     ? `<img src="${escapeHtml(image)}" alt="${caption}" class="gallery-img-element" loading="lazy">`
-                    : `<div class="gallery-placeholder-blueprint">${buildDiagram(day.icon, [], '#F77F00')}</div>`}
+                    : moduleGlyph(day.icon, 'sm')}
                 </div>
                 <div class="gallery-caption-bottom">
                   <span class="caption-badge">Muestra ${idx + 1}</span>
@@ -627,33 +957,11 @@ const CoursesModule = (() => {
       `;
     }).join('');
 
-    workspaceEl.innerHTML = `
-      <div class="lesson-stage-screen">
-        <div class="lms-progress-strip">
-          <div class="lps-meta">
-            <span class="lps-label">DÍA ${escapeHtml(day.dayNumber)} · ${escapeHtml(day.title).toUpperCase()}</span>
-            <span class="lps-step-count">Etapa ${currentStageNum} de ${totalStages}</span>
-          </div>
-          <div class="lps-bar-wrap">
-            <div class="lps-bar-fill" style="width: ${pct}%;"></div>
-          </div>
-          <div class="lps-stepper">
-            ${stepperHtml}
-          </div>
-        </div>
-
-        <div class="day-stages-container day-stages-container--flush-top">
-          ${stageContentHtml}
-        </div>
-
-        <div class="lesson-nav-footer">
-          <button class="btn-lesson-nav" data-lesson-prev>
-            ${prevStage ? `<i class="fa-solid fa-arrow-left"></i> ${STAGE_META[prevStage].label}` : `<i class="fa-solid fa-arrow-left"></i> Introducción`}
-          </button>
-          <div class="lesson-nav-center">
-            <span class="lesson-nav-info">${STAGE_META[stageKey].label}</span>
-          </div>
-          ${nextStage ? `
+    /* En teoría el avance es tema a tema: el pie no ofrece saltar a la etapa
+       siguiente, para no invitar a dejar el resto de temas sin leer. El pager
+       del artículo continúa a la guía visual al terminar el último tema. */
+    const footerNextHtml = stageKey === 'theory' ? '' : (
+      nextStage ? `
             <button class="btn-lesson-next" data-lesson-next="${nextStage}">
               ${stageKey === 'quiz' ? '' : `${STAGE_META[nextStage].label}`} SIGUIENTE <i class="fa-solid fa-arrow-right"></i>
             </button>
@@ -665,10 +973,41 @@ const CoursesModule = (() => {
             <button class="btn-lesson-next" data-nav-final-quiz>
               EVALUACIÓN FINAL <i class="fa-solid fa-trophy"></i>
             </button>
-          `}
+          `
+    );
+
+    workspaceEl.innerHTML = `
+      <div class="lesson-stage-screen">
+        <div class="lms-progress-strip">
+          <div class="lps-meta">
+            <span class="lps-label">DÍA ${escapeHtml(day.dayNumber)} · ${escapeHtml(day.title).toUpperCase()}</span>
+            <span class="lps-step-count">Etapa ${currentStageNum} de ${totalStages}</span>
+          </div>
+          <div class="lps-bar-wrap">
+            <div class="lps-bar-fill" data-fill-pct="${pct}"></div>
+          </div>
+          <div class="lps-stepper">
+            ${stepperHtml}
+          </div>
+        </div>
+
+        <div class="day-stages-container day-stages-container--flush-top${stageKey === 'theory' ? ' day-stages-container--reading' : ''}">
+          ${stageContentHtml}
+        </div>
+
+        <div class="lesson-nav-footer${stageKey === 'theory' ? ' lesson-nav-footer--reading' : ''}">
+          <button class="btn-lesson-nav" data-lesson-prev>
+            ${prevStage ? `<i class="fa-solid fa-arrow-left"></i> ${STAGE_META[prevStage].label}` : `<i class="fa-solid fa-arrow-left"></i> Introducción`}
+          </button>
+          <div class="lesson-nav-center">
+            <span class="lesson-nav-info">${STAGE_META[stageKey].label}</span>
+          </div>
+          ${footerNextHtml}
         </div>
       </div>
     `;
+    applyDynamicStyles(workspaceEl);
+    RichText.enhance(workspaceEl);
 
     // Mark intro as visited / complete
     if (!courseProgress[day.id]) courseProgress[day.id] = { completedStages: [] };
@@ -676,10 +1015,12 @@ const CoursesModule = (() => {
     // Bind quiz
     if (stageKey === 'quiz') {
       LightboxModule.bind(workspaceEl);
-      QuizModule.render(workspaceEl.querySelector('[data-quiz]'), sec.quiz || [], day.title);
+      QuizModule.render(workspaceEl.querySelector('[data-quiz]'), sec.quiz || [], day.title, day.quizId);
     } else {
       LightboxModule.bind(workspaceEl);
     }
+
+    if (stageKey === 'theory') bindTheoryNavigation(day, dayNum, opts);
 
     // Navigation listeners
     const prevBtn = workspaceEl.querySelector('[data-lesson-prev]');
@@ -777,9 +1118,9 @@ const CoursesModule = (() => {
       if (finalBtn) finalBtn.classList.add('is-active');
     }
 
-    let finalQuestions = [];
+    let finalQuiz = null;
     if (typeof DbService !== 'undefined') {
-      finalQuestions = await DbService.getFinalQuiz();
+      finalQuiz = await DbService.getFinalQuiz();
     }
 
     workspaceEl.innerHTML = `
@@ -799,7 +1140,7 @@ const CoursesModule = (() => {
         </div>
       </div>
     `;
-    QuizModule.renderFinal(workspaceEl.querySelector('[data-final-quiz-container]'), finalQuestions);
+    QuizModule.renderFinal(workspaceEl.querySelector('[data-final-quiz-container]'), finalQuiz);
 
     if (opts.scroll !== false) scrollToWorkspace();
   }
@@ -818,10 +1159,87 @@ const CoursesModule = (() => {
   }
 
   // === INIT ===
+  /* Bloque de estado del catálogo: cubre el lateral y la zona central.
+     Se usa cuando la base de datos no responde o no hay lecciones publicadas,
+     para no dejar la página en blanco sin explicación. */
+  function renderCatalogState(kind, err) {
+    const isError = kind === 'error';
+
+    const opts = isError
+      ? {
+          tone: 'error',
+          icon: 'fa-plug-circle-xmark',
+          title: 'No pudimos cargar el temario',
+          text: 'Revisa tu conexión e inténtalo de nuevo.',
+          actionLabel: 'Reintentar',
+          onAction: loadFromDatabase
+        }
+      : {
+          icon: 'fa-folder-open',
+          title: 'Todavía no hay lecciones publicadas',
+          text: 'El contenido aparecerá aquí en cuanto se publique.',
+          actionLabel: 'Volver a comprobar',
+          onAction: loadFromDatabase
+        };
+
+    if (treeNavEl) Notify.state(treeNavEl, opts);
+    if (workspaceEl) Notify.state(workspaceEl, opts);
+
+    if (isError) console.warn('[Cursos] No se pudo cargar el catálogo:', err && err.code);
+  }
+
+  /* Trae el catálogo de Supabase y pinta la interfaz. Es idempotente: la usan
+     la carga inicial y el botón de reintentar. */
+  async function loadFromDatabase() {
+    if (typeof DbService === 'undefined') {
+      renderCatalogState('error');
+      return;
+    }
+
+    try {
+      const remoteDays = await DbService.getAllDays();
+
+      if (!remoteDays || !remoteDays.length) {
+        cachedDays = [];
+        renderCatalogState('empty');
+        return;
+      }
+
+      cachedDays = remoteDays;
+      loadProgress();
+      const exists = remoteDays.some(d => String(d.dayNumber) === String(activeDayNum));
+      activeDayNum = exists ? activeDayNum : remoteDays[0].dayNumber;
+
+      renderTreeNav();
+      initToolbar();
+      if (activeDayNum === 'FINAL') await openFinalQuiz({ scroll: false });
+      else showCourseIntro(activeDayNum, { scroll: false });
+    } catch (err) {
+      cachedDays = [];
+      renderCatalogState('error', err);
+    }
+  }
+
   async function init() {
     treeNavEl = document.querySelector('[data-tree-nav]');
     workspaceEl = document.querySelector('[data-module-workspace]');
     if (!treeNavEl || !workspaceEl) return;
+
+    /* Índice plegable en tablet y móvil: en una columna, el árbol completo
+       empujaría la lección fuera de la primera pantalla. */
+    lmsSidebarEl = document.querySelector('.lms-sidebar');
+    const indexToggle = document.getElementById('lmsIndexToggle');
+    if (indexToggle && lmsSidebarEl) {
+      if (window.matchMedia('(max-width: 1024px)').matches) {
+        lmsSidebarEl.classList.add('is-collapsed');
+      }
+      indexToggle.addEventListener('click', () => {
+        const collapsed = lmsSidebarEl.classList.toggle('is-collapsed');
+        indexToggle.setAttribute('aria-expanded', String(!collapsed));
+      });
+    }
+
+    // Caché local (si ya había lecciones en memoria, se pinta al instante)
     const days = getAllDays();
     if (days.length) {
       loadProgress();
@@ -831,23 +1249,7 @@ const CoursesModule = (() => {
       initToolbar();
     }
 
-    // Sincronización en segundo plano con base de datos Supabase
-    if (typeof DbService !== 'undefined') {
-      try {
-        const remoteDays = await DbService.getAllDays();
-        if (remoteDays && remoteDays.length) {
-          cachedDays = remoteDays;
-          renderTreeNav();
-          if (activeDayNum === 'FINAL') {
-            await openFinalQuiz({ scroll: false });
-          } else {
-            showCourseIntro(activeDayNum, { scroll: false });
-          }
-        }
-      } catch (e) {
-        console.warn('Cargando con almacenamiento local:', e);
-      }
-    }
+    await loadFromDatabase();
 
     window.addEventListener('storage', () => {
       renderTreeNav();
@@ -870,21 +1272,45 @@ const CoursesModule = (() => {
 const QuizModule = (() => {
   const escapeHtml = (value) => Utils.escapeHtml(value);
 
-  /* Plantilla de una pregunta. Todo el texto (enunciado y opciones) se escapa:
-     un admin puede escribir cualquier carácter y nunca se interpreta como HTML. */
-  function questionHtml(q, qi, total) {
+  /* Orden de presentación de las alternativas.
+     Se barajan solo las que tienen texto; las vacías se quedan al final para no
+     dejar huecos en medio. El índice guardado no cambia: esto decide únicamente
+     en qué posición se pinta cada alternativa, y el `data-opt` conserva el
+     índice original para que la corrección siga siendo la misma. */
+  function shuffleOrder(q) {
+    const options = q.options || [];
+    const filled = [];
+    const empty = [];
+    options.forEach((opt, i) => (String(opt == null ? '' : opt).trim() ? filled : empty).push(i));
+
+    for (let i = filled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [filled[i], filled[j]] = [filled[j], filled[i]];
+    }
+    return filled.concat(empty);
+  }
+
+  /* Plantilla de una pregunta. Todo el texto (enunciado y opciones) se escapa.
+     Ya no se revela la opción correcta: cada alternativa lleva su `id` y la
+     corrección se hace en el servidor (RPC grade_quiz, mitigación M-01). */
+  function questionHtml(q, qi, total, order) {
+    const options = q.options || [];
+    const optionIds = q.optionIds || [];
+    const sequence = order && order.length === options.length
+      ? order
+      : options.map((_, i) => i);
+
     return `
-      <div class="quiz-question ${qi === 0 ? 'is-active' : ''}" data-q="${qi}">
+      <div class="quiz-question ${qi === 0 ? 'is-active' : ''}" data-q="${qi}" data-q-id="${escapeHtml(q.id || '')}">
         <p class="q-text">${qi + 1}. ${escapeHtml(q.q)}</p>
         <div class="quiz-options">
-          ${(q.options || []).map((opt, oi) => `
-            <button class="quiz-option" data-opt="${oi}" type="button">
-              <span class="opt-letter">${String.fromCharCode(65 + oi)}</span>
-              <span>${escapeHtml(opt)}</span>
+          ${sequence.map((original, display) => `
+            <button class="quiz-option" data-opt-id="${escapeHtml(optionIds[original] != null ? optionIds[original] : '')}" type="button">
+              <span class="opt-letter">${String.fromCharCode(65 + display)}</span>
+              <span>${escapeHtml(options[original])}</span>
             </button>
           `).join('')}
         </div>
-        <p class="quiz-feedback" data-feedback></p>
         <div class="quiz-nav">
           <button class="btn btn--outline btn--sm" data-prev type="button" ${qi === 0 ? 'disabled' : ''}>Anterior</button>
           <button class="btn btn--primary btn--sm" data-next type="button" disabled>${qi === total - 1 ? 'Ver resultado' : 'Siguiente'}</button>
@@ -893,7 +1319,39 @@ const QuizModule = (() => {
     `;
   }
 
-  function render(container, quizArray = [], title = 'Lección') {
+  /* Corrige en el servidor (RPC grade_quiz, SECURITY DEFINER) y devuelve
+     { correct, total } sin exponer la opción correcta de cada pregunta. */
+  async function gradeQuiz(quizId, answers) {
+    if (typeof DbService !== 'undefined' && typeof DbService.gradeQuiz === 'function') {
+      try {
+        return await DbService.gradeQuiz(quizId, answers);
+      } catch (err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function resultsHtml(score, correctCount, total) {
+    return `
+      <div class="score-ring" data-ring>
+        <div class="score-ring-track" aria-hidden="true"></div>
+        <div class="score-ring-inner">
+          <p class="score-value" data-score>0<span>%</span></p>
+          <span class="score-label">Puntaje</span>
+        </div>
+      </div>
+      <div class="quiz-verdict quiz-verdict--${score.passed ? 'pass' : 'fail'}">
+        <i class="${score.verdictIcon}"></i> ${score.verdict}
+      </div>
+      <p class="quiz-breakdown"><strong>${correctCount} correctas</strong> · <em>${total - correctCount} incorrectas</em> de ${total} preguntas</p>
+      <p class="quiz-msg">${score.msg}</p>
+      <p class="quiz-threshold">Aprueba con <b>${ScoreScale.PASS}%</b> o más</p>
+      <button class="btn btn--primary btn--sm btn-retry--inline" data-retry>Reintentar Cuestionario</button>
+    `;
+  }
+
+  function render(container, quizArray = [], title = 'Lección', quizId = null) {
     if (!container) return;
     const total = quizArray.length;
     if (!total) {
@@ -902,7 +1360,7 @@ const QuizModule = (() => {
     }
 
     let current = 0;
-    let answered = new Array(total).fill(null);
+    const selected = new Array(total).fill(null);   // option id elegido por pregunta
 
     container.innerHTML = `
       <div class="quiz-head">
@@ -914,7 +1372,10 @@ const QuizModule = (() => {
     `;
 
     const qWrap = container.querySelector('[data-questions]');
-    qWrap.innerHTML = quizArray.map((q, qi) => questionHtml(q, qi, total)).join('');
+    // Un orden por pregunta y por intento: el alumno no puede memorizar la
+    // posición de la correcta, y el reintento vuelve a barajar.
+    const orders = quizArray.map(shuffleOrder);
+    qWrap.innerHTML = quizArray.map((q, qi) => questionHtml(q, qi, total, orders[qi])).join('');
 
     function showQuestion(i) {
       qWrap.querySelectorAll('.quiz-question').forEach(el => el.classList.remove('is-active'));
@@ -927,18 +1388,13 @@ const QuizModule = (() => {
       const options = qEl.querySelectorAll('.quiz-option');
       const nextBtn = qEl.querySelector('[data-next]');
       const prevBtn = qEl.querySelector('[data-prev]');
-      const feedback = qEl.querySelector('[data-feedback]');
-      const correctIdx = quizArray[qi].correct;
 
-      options.forEach((opt, oi) => {
+      // Sin feedback instantáneo: se guarda la opción elegida y se corrige al
+      // final en el servidor, sin revelar la correcta (mitigación M-01).
+      options.forEach(opt => {
         opt.addEventListener('click', () => {
-          if (answered[qi] !== null) return;
-          answered[qi] = oi;
-          options.forEach(o => o.disabled = true);
-          opt.classList.add(oi === correctIdx ? 'is-correct' : 'is-incorrect');
-          if (oi !== correctIdx) options[correctIdx].classList.add('is-correct');
-          feedback.textContent = oi === correctIdx ? '¡Correcto!' : 'Incorrecto. Revisa las subsecciones de teoría y la galería visual.';
-          feedback.className = 'quiz-feedback ' + (oi === correctIdx ? 'correct' : 'incorrect');
+          selected[qi] = opt.dataset.optId || null;
+          options.forEach(o => o.classList.toggle('is-selected', o === opt));
           nextBtn.disabled = false;
         });
       });
@@ -953,34 +1409,47 @@ const QuizModule = (() => {
       });
     });
 
-    function showResults() {
-      const correctCount = answered.reduce((acc, a, i) => acc + (a === quizArray[i].correct ? 1 : 0), 0);
-      const pct = Math.round((correctCount / total) * 100);
-      const score = ScoreScale.classify(pct);
+    async function showResults() {
       qWrap.querySelectorAll('.quiz-question').forEach(el => el.classList.remove('is-active'));
 
       const results = container.querySelector('[data-results]');
-      results.classList.remove('quiz-results--pass', 'quiz-results--excellent', 'quiz-results--fail');
-      results.classList.add('is-active', `quiz-results--${score.key}`);
-      results.innerHTML = `
-        <div class="gauge-wrap" data-gauge></div>
-        <p class="gauge-score" data-score>0<span>%</span></p>
-        <div class="quiz-verdict quiz-verdict--${score.passed ? 'pass' : 'fail'}">
-          <i class="${score.verdictIcon}"></i> ${score.verdict}
-        </div>
-        <p class="quiz-breakdown"><strong>${correctCount} correctas</strong> · <em>${total - correctCount} incorrectas</em> de ${total} preguntas</p>
-        <p class="quiz-msg">${score.msg}</p>
-        <p class="quiz-threshold">Aprueba con <b>${ScoreScale.PASS}%</b> o más</p>
-        <button class="btn btn--primary btn--sm btn-retry--inline" data-retry>Reintentar Cuestionario</button>
-      `;
+      results.classList.add('is-active');
+      results.innerHTML = `<p class="quiz-empty-msg">Comprobando respuestas…</p>`;
 
-      GaugeModule.draw(results.querySelector('[data-gauge]'), pct, results.querySelector('[data-score]'));
-      results.querySelector('[data-retry]').addEventListener('click', () => render(container, quizArray, title));
+      const answers = quizArray.map((q, i) => ({
+        question_id: q.id,
+        option_id: selected[i] || null
+      }));
+
+      const outcome = await gradeQuiz(quizId, answers);
+
+      if (!outcome || typeof outcome.correct !== 'number' || typeof outcome.total !== 'number') {
+        results.innerHTML = `
+          <p class="quiz-empty-msg">No se pudieron comprobar las respuestas. Inténtalo de nuevo.</p>
+          <button class="btn btn--primary btn--sm btn-retry--inline" data-retry>Reintentar Cuestionario</button>
+        `;
+        results.querySelector('[data-retry]').addEventListener('click', () => render(container, quizArray, title, quizId));
+        return;
+      }
+
+      const correctCount = outcome.correct;
+      const totalCount = outcome.total || total;
+      const pct = Math.round((correctCount / totalCount) * 100);
+      const score = ScoreScale.classify(pct);
+
+      results.classList.remove('quiz-results--pass', 'quiz-results--excellent', 'quiz-results--fail');
+      results.classList.add(`quiz-results--${score.key}`);
+      results.innerHTML = resultsHtml(score, correctCount, totalCount);
+
+      ScoreRingModule.draw(results.querySelector('[data-ring]'), pct);
+      results.querySelector('[data-retry]').addEventListener('click', () => render(container, quizArray, title, quizId));
     }
   }
 
-  function renderFinal(container, quizArray = []) {
+  function renderFinal(container, quiz = null) {
     if (!container) return;
+    const quizId = quiz && quiz.id ? quiz.id : null;
+    const quizArray = (quiz && quiz.questions) || [];
     const total = quizArray.length;
     if (!total) {
       container.innerHTML = `<p class="quiz-empty-msg">El Cuestionario Final aún no tiene preguntas configuradas por el administrador.</p>`;
@@ -988,11 +1457,11 @@ const QuizModule = (() => {
     }
 
     let current = 0;
-    let answered = new Array(total).fill(null);
+    const selected = new Array(total).fill(null);
 
     container.innerHTML = `
       <div class="quiz-head">
-        <h4>Cuestionario de Certificación Final</h4>
+        <h4>Cuestionario Final de Nivel</h4>
         <span class="quiz-progress" data-progress>Pregunta 1 / ${total}</span>
       </div>
       <div data-questions></div>
@@ -1000,7 +1469,9 @@ const QuizModule = (() => {
     `;
 
     const qWrap = container.querySelector('[data-questions]');
-    qWrap.innerHTML = quizArray.map((q, qi) => questionHtml(q, qi, total)).join('');
+    // Mismo criterio que el quiz de lección: orden aleatorio por pregunta.
+    const orders = quizArray.map(shuffleOrder);
+    qWrap.innerHTML = quizArray.map((q, qi) => questionHtml(q, qi, total, orders[qi])).join('');
 
     function showQuestion(i) {
       qWrap.querySelectorAll('.quiz-question').forEach(el => el.classList.remove('is-active'));
@@ -1013,18 +1484,11 @@ const QuizModule = (() => {
       const options = qEl.querySelectorAll('.quiz-option');
       const nextBtn = qEl.querySelector('[data-next]');
       const prevBtn = qEl.querySelector('[data-prev]');
-      const feedback = qEl.querySelector('[data-feedback]');
-      const correctIdx = quizArray[qi].correct;
 
-      options.forEach((opt, oi) => {
+      options.forEach(opt => {
         opt.addEventListener('click', () => {
-          if (answered[qi] !== null) return;
-          answered[qi] = oi;
-          options.forEach(o => o.disabled = true);
-          opt.classList.add(oi === correctIdx ? 'is-correct' : 'is-incorrect');
-          if (oi !== correctIdx) options[correctIdx].classList.add('is-correct');
-          feedback.textContent = oi === correctIdx ? '¡Respuesta Correcta!' : 'Respuesta Incorrecta.';
-          feedback.className = 'quiz-feedback ' + (oi === correctIdx ? 'correct' : 'incorrect');
+          selected[qi] = opt.dataset.optId || null;
+          options.forEach(o => o.classList.toggle('is-selected', o === opt));
           nextBtn.disabled = false;
         });
       });
@@ -1039,14 +1503,35 @@ const QuizModule = (() => {
       });
     });
 
-    function showResults() {
-      const correctCount = answered.reduce((acc, a, i) => acc + (a === quizArray[i].correct ? 1 : 0), 0);
-      const pct = Math.round((correctCount / total) * 100);
-      const score = ScoreScale.classify(pct);
+    async function showResults() {
       qWrap.querySelectorAll('.quiz-question').forEach(el => el.classList.remove('is-active'));
 
-      // El examen final conserva su certificado de nivel profesional (4 rangos),
-      // pero comparte el mismo medidor, veredicto y paleta del quiz de lección.
+      const results = container.querySelector('[data-results]');
+      results.classList.add('is-active');
+      results.innerHTML = `<p class="quiz-empty-msg">Comprobando respuestas…</p>`;
+
+      const answers = quizArray.map((q, i) => ({
+        question_id: q.id,
+        option_id: selected[i] || null
+      }));
+
+      const outcome = await gradeQuiz(quizId, answers);
+
+      if (!outcome || typeof outcome.correct !== 'number' || typeof outcome.total !== 'number') {
+        results.innerHTML = `
+          <p class="quiz-empty-msg">No se pudieron comprobar las respuestas. Inténtalo de nuevo.</p>
+          <button class="btn btn--primary btn--sm btn-retry" data-retry>Reintentar Examen Final</button>
+        `;
+        results.querySelector('[data-retry]').addEventListener('click', () => renderFinal(container, quiz));
+        return;
+      }
+
+      const correctCount = outcome.correct;
+      const totalCount = outcome.total || total;
+      const pct = Math.round((correctCount / totalCount) * 100);
+      const score = ScoreScale.classify(pct);
+
+      // El examen final conserva su diagnóstico de nivel (4 rangos).
       let levelBadge, levelTitle, levelDesc, levelColor;
       if (pct >= 90) {
         levelBadge = 'NIVEL EXPERTO';
@@ -1070,30 +1555,35 @@ const QuizModule = (() => {
         levelDesc = 'Revisa nuevamente el contenido de las lecciones diarias y realiza las evaluaciones por etapa antes de reintentar.';
       }
 
-      const results = container.querySelector('[data-results]');
       results.classList.remove('quiz-results--pass', 'quiz-results--excellent', 'quiz-results--fail');
-      results.classList.add('is-active', `quiz-results--${score.key}`);
+      results.classList.add(`quiz-results--${score.key}`);
       results.innerHTML = `
-        <div class="gauge-wrap" data-gauge></div>
-        <p class="gauge-score" data-score>0<span>%</span></p>
+        <div class="score-ring" data-ring>
+          <div class="score-ring-track" aria-hidden="true"></div>
+          <div class="score-ring-inner">
+            <p class="score-value" data-score>0<span>%</span></p>
+            <span class="score-label">Puntaje</span>
+          </div>
+        </div>
         <div class="quiz-verdict quiz-verdict--${score.passed ? 'pass' : 'fail'}">
           <i class="${score.verdictIcon}"></i> ${score.verdict}
         </div>
-        <p class="quiz-breakdown"><strong>${correctCount} correctas</strong> · <em>${total - correctCount} incorrectas</em> de ${total} preguntas evaluadas</p>
+        <p class="quiz-breakdown"><strong>${correctCount} correctas</strong> · <em>${totalCount - correctCount} incorrectas</em> de ${totalCount} preguntas evaluadas</p>
         <p class="quiz-msg">${score.msg}</p>
-        <p class="quiz-threshold">Certificación con <b>${ScoreScale.PASS}%</b> o más</p>
+        <p class="quiz-threshold">Nivel con <b>${ScoreScale.PASS}%</b> o más</p>
 
-        <div class="level-cert-box" style="border-color:${levelColor};">
-          <span class="level-cert-badge" style="background:${levelColor};">${levelBadge}</span>
+        <div class="level-cert-box" data-border-color="${levelColor}">
+          <span class="level-cert-badge" data-bg-color="${levelColor}">${levelBadge}</span>
           <h4>${levelTitle}</h4>
           <p>${levelDesc}</p>
         </div>
 
         <button class="btn btn--primary btn--sm btn-retry" data-retry><i class="fa-solid fa-rotate-left"></i> Reintentar Examen Final</button>
       `;
+      applyDynamicStyles(results);
 
-      GaugeModule.draw(results.querySelector('[data-gauge]'), pct, results.querySelector('[data-score]'));
-      results.querySelector('[data-retry]').addEventListener('click', () => renderFinal(container, quizArray));
+      ScoreRingModule.draw(results.querySelector('[data-ring]'), pct);
+      results.querySelector('[data-retry]').addEventListener('click', () => renderFinal(container, quiz));
     }
   }
 
@@ -1117,7 +1607,7 @@ const ScoreScale = (() => {
         verdict: 'Aprobado',
         verdictIcon: 'fa-solid fa-award',
         msg: '¡Excelente! Dominio completo del tema.',
-        color: '#2E7D32'
+        color: 'var(--c-success)'
       };
     }
     if (pct >= PASS) {
@@ -1127,7 +1617,7 @@ const ScoreScale = (() => {
         verdict: 'Aprobado',
         verdictIcon: 'fa-solid fa-circle-check',
         msg: 'Buen resultado. Repasa los detalles para afinar.',
-        color: '#2E7D32'
+        color: 'var(--c-success)'
       };
     }
     return {
@@ -1136,7 +1626,7 @@ const ScoreScale = (() => {
       verdict: 'Reprobado',
       verdictIcon: 'fa-solid fa-circle-xmark',
       msg: 'Vuelve a revisar la teoría, el video y la galería.',
-      color: '#C62828'
+      color: 'var(--c-danger)'
     };
   }
 
@@ -1144,73 +1634,39 @@ const ScoreScale = (() => {
 })();
 
 /* --------------------------------------------------------------------------
-   MEDIDOR (GAUGE) — aguja tipo tacómetro para el resultado
+   ANILLO DE PUNTAJE
+   Sustituye al antiguo tacómetro con aguja. Un solo arco se llena de 0 a 100
+   y el número vive en el centro: se entiende de un vistazo, sin escalas ni
+   agujas que tapen la cifra. Se dibuja con conic-gradient + mask, sin SVG.
    -------------------------------------------------------------------------- */
-const GaugeModule = (() => {
-  // Dibuja el medidor y anima la aguja + el número desde 0 hasta pct.
-  function draw(el, pct, scoreEl) {
-    if (!el) return;
+const ScoreRingModule = (() => {
+  const DURATION = 900;
+
+  function draw(ringEl, pct) {
+    if (!ringEl) return;
     const clamped = Math.max(0, Math.min(100, pct));
-    const angle = -90 + (clamped / 100) * 180;
-    const color = ScoreScale.classify(clamped).color;
+    const valueEl = ringEl.querySelector('[data-score]');
+    const numberNode = valueEl ? valueEl.firstChild : null;
 
-    el.innerHTML = `
-      <svg class="gauge-svg" viewBox="0 0 200 118" xmlns="http://www.w3.org/2000/svg" role="img"
-           aria-label="Resultado: ${clamped} por ciento">
-        <path class="gauge-track" d="M20 100 A80 80 0 0 1 66 24" fill="none" stroke="#D62828" stroke-width="13" stroke-linecap="round"/>
-        <path class="gauge-track" d="M66 24 A80 80 0 0 1 134 24" fill="none" stroke="#F77F00" stroke-width="13" stroke-linecap="round"/>
-        <path class="gauge-track" d="M134 24 A80 80 0 0 1 180 100" fill="none" stroke="#2E7D32" stroke-width="13" stroke-linecap="round"/>
-        <path d="M20 100 A80 80 0 0 1 66 24" fill="none" stroke="#D62828" stroke-width="13" stroke-linecap="round"
-              stroke-dasharray="100" pathLength="100" data-arc="0"/>
-        <path d="M66 24 A80 80 0 0 1 134 24" fill="none" stroke="#F77F00" stroke-width="13" stroke-linecap="round"
-              stroke-dasharray="100" pathLength="100" data-arc="1"/>
-        <path d="M134 24 A80 80 0 0 1 180 100" fill="none" stroke="#2E7D32" stroke-width="13" stroke-linecap="round"
-              stroke-dasharray="100" pathLength="100" data-arc="2"/>
-        <circle cx="100" cy="100" r="7" fill="#1E3A5F"/>
-        <line class="gauge-needle" data-needle x1="100" y1="100" x2="100" y2="30"
-              stroke="#1E3A5F" stroke-width="4" stroke-linecap="round"
-              transform="rotate(-90 100 100)"/>
-      </svg>
-    `;
+    // El color del arco sale de la escala compartida (verde / rojo).
+    ringEl.style.setProperty('--ring-color', ScoreScale.classify(clamped).color);
 
-    const needle = el.querySelector('[data-needle]');
-    const animate = () => {
-      if (needle) {
-        needle.setAttribute('transform', `rotate(${angle} 100 100)`);
-        needle.setAttribute('stroke', color);
-      }
-      // Los arcos de color se llenan de 0 a 100% según el puntaje.
-      el.querySelectorAll('[data-arc]').forEach((arc, i) => {
-        const segStart = i * 100 / 3;
-        const fill = Math.max(0, Math.min(100, ((clamped - segStart) / (100 / 3)) * 100));
-        arc.setAttribute('stroke-dasharray', `${fill} 100`);
-      });
+    const paint = (value) => {
+      ringEl.style.setProperty('--pct', value);
+      if (numberNode) numberNode.nodeValue = String(value);
     };
 
-    if ('requestAnimationFrame' in window) {
-      requestAnimationFrame(() => requestAnimationFrame(animate));
-    } else {
-      animate();
+    // Con movimiento reducido se muestra el resultado final sin animación.
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      paint(clamped);
+      return;
     }
 
-    // El número sube de 0 hasta el porcentaje final.
-    if (scoreEl) countUp(scoreEl, clamped);
-  }
-
-  // Animación del contador numérico (0 → target).
-  function countUp(el, target) {
-    const duration = 900;
     const start = performance.now();
-    const numberNode = el.firstChild;             // nodo de texto antes del <span>%
-    const setNumber = (v) => { if (numberNode) numberNode.nodeValue = String(v); };
-    if (!numberNode) return;
-    setNumber(0);
     function step(now) {
-      const t = Math.min(1, (now - start) / duration);
-      const eased = 1 - Math.pow(1 - t, 3);       // easeOutCubic
-      setNumber(Math.round(eased * target));
+      const t = Math.min(1, (now - start) / DURATION);
+      paint(Math.round((1 - Math.pow(1 - t, 3)) * clamped)); // easeOutCubic
       if (t < 1) requestAnimationFrame(step);
-      else setNumber(target);
     }
     requestAnimationFrame(step);
   }
@@ -1275,7 +1731,11 @@ const BackToTopModule = (() => {
     const btn = document.querySelector('[data-back-to-top]');
     if (!btn) return;
     window.addEventListener('scroll', () => {
-      btn.classList.toggle('is-visible', window.scrollY > 600);
+      const y = window.scrollY;
+      // Se oculta cerca del final: ahí ya no sirve y tapaba el botón de envío
+      // del formulario de contacto.
+      const nearBottom = y + window.innerHeight > document.documentElement.scrollHeight - 260;
+      btn.classList.toggle('is-visible', y > 600 && !nearBottom);
     }, { passive: true });
     btn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
   }
@@ -1333,7 +1793,7 @@ const ContactModule = (() => {
       }
 
       if (typeof DbService === 'undefined' || !window.isSupabaseConfigured || !window.isSupabaseConfigured()) {
-        setNote('El canal de contacto no está disponible en este momento. Escríbenos a contacto@mecanicatotal.cl.', 'error');
+        setNote('El canal de contacto no está disponible en este momento. Escríbenos a mekatotalcorreo@gmail.com.', 'error');
         return;
       }
 
@@ -1354,7 +1814,7 @@ const ContactModule = (() => {
         setNote(
           err && err.code === 'VALIDATION'
             ? err.message
-            : 'No pudimos enviar tu mensaje. Inténtalo de nuevo o escríbenos a contacto@mecanicatotal.cl.',
+            : 'No pudimos enviar tu mensaje. Inténtalo de nuevo o escríbenos a mekatotalcorreo@gmail.com.',
           'error'
         );
       } finally {
@@ -1370,6 +1830,46 @@ const ContactModule = (() => {
 })();
 
 /* --------------------------------------------------------------------------
+   RESPALDO DE IMÁGENES
+   Si una portada o una miniatura de galería no carga (URL caducada, hotlink
+   bloqueado, archivo borrado), se sustituye por el emblema del módulo en vez
+   de dejar el icono de imagen rota. Se escucha en fase de captura porque el
+   evento `error` de un <img> no burbujea.
+   -------------------------------------------------------------------------- */
+const ImageFallbackModule = (() => {
+  function init() {
+    document.addEventListener('error', (event) => {
+      const img = event.target;
+      if (!(img instanceof HTMLImageElement)) return;
+
+      const box = img.closest('.gallery-img-container, .ci-icon-visual');
+      if (!box || box.dataset.fallbackApplied) return;
+      box.dataset.fallbackApplied = '1';
+
+      const iconKey = box.dataset.iconKey || 'tools';
+      const isCover = box.classList.contains('ci-icon-visual');
+
+      if (isCover) {
+        box.classList.remove('ci-icon-visual--photo');
+        box.innerHTML = moduleGlyph(iconKey);
+      } else {
+        const tpl = document.createElement('template');
+        tpl.innerHTML = moduleGlyph(iconKey, 'sm');
+        box.replaceChildren(tpl.content);
+        // La tarjeta ya no es ampliable: no hay nada que mostrar en el visor.
+        const card = box.closest('.gallery-explain-card');
+        if (card) {
+          card.removeAttribute('data-lightbox');
+          card.classList.add('gallery-explain-card--empty');
+          card.querySelector('.zoom-hint')?.remove();
+        }
+      }
+    }, true);
+  }
+  return { init };
+})();
+
+/* --------------------------------------------------------------------------
    INICIALIZACIÓN PRINCIPAL
    -------------------------------------------------------------------------- */
 function initApp() {
@@ -1380,6 +1880,7 @@ function initApp() {
   LightboxModule.init();
   BackToTopModule.init();
   ContactModule.init();
+  ImageFallbackModule.init();
 }
 
 if (typeof document !== 'undefined') {

@@ -1,5 +1,5 @@
 {
-  "name": "mecanica-total",
+  "name": "meka-total",
   "version": "1.0.0",
   "private": true,
   "description": "Plataforma educativa gratuita de mecánica automotriz",
@@ -7,7 +7,8 @@
   "scripts": {
     "build": "node scripts/build-env.mjs",
     "dev": "node scripts/dev-server.mjs",
-    "start": "node scripts/dev-server.mjs"
+    "start": "node scripts/dev-server.mjs",
+    "audit:css": "node scripts/audit-classes.mjs"
   },
   "engines": {
     "node": ">=20"

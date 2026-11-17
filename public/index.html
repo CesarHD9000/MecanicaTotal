@@ -3,30 +3,30 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mecánica Total — Aprende Mecánica Automotriz desde Cero</title>
+<title>MeKa Total — Aprende Mecánica Automotriz desde Cero</title>
 <meta name="description" content="Plataforma educativa gratuita de Mecánica Automotriz y Maquinaria Pesada, organizada por niveles, con cuestionarios interactivos.">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<link rel="canonical" href="https://mecanicatotal.cl/">
+<link rel="canonical" href="https://mekatotal.cl/">
 
 <!-- Favicon -->
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 
 <!-- Open Graph / redes sociales (reemplaza el dominio por el real al publicar) -->
-<meta property="og:site_name" content="Mecánica Total">
+<meta property="og:site_name" content="MeKa Total">
 <meta property="og:type" content="website">
-<meta property="og:locale" content="es_AR">
-<meta property="og:title" content="Mecánica Total — Aprende Mecánica Automotriz desde Cero">
+<meta property="og:locale" content="es_CL">
+<meta property="og:title" content="MeKa Total — Aprende Mecánica Automotriz desde Cero">
 <meta property="og:description" content="Plataforma educativa gratuita de Mecánica Automotriz y Maquinaria Pesada, organizada por niveles, con cuestionarios interactivos.">
-<meta property="og:url" content="https://mecanicatotal.cl/">
-<meta property="og:image" content="https://mecanicatotal.cl/img/og-cover.jpg">
+<meta property="og:url" content="https://mekatotal.cl/">
+<meta property="og:image" content="https://mekatotal.cl/img/og-cover.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Mecánica Total — educación automotriz gratuita">
+<meta property="og:image:alt" content="MeKa Total — educación automotriz gratuita">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Mecánica Total — Aprende Mecánica Automotriz desde Cero">
+<meta name="twitter:title" content="MeKa Total — Aprende Mecánica Automotriz desde Cero">
 <meta name="twitter:description" content="Plataforma educativa gratuita de Mecánica Automotriz, organizada por niveles, con cuestionarios interactivos.">
-<meta name="twitter:image" content="https://mecanicatotal.cl/img/og-cover.jpg">
+<meta name="twitter:image" content="https://mekatotal.cl/img/og-cover.jpg">
 <meta name="theme-color" content="#1E3A5F">
 
 <!-- Tipografía: Plus Jakarta Sans (titulares) + Inter (cuerpo) + JetBrains Mono -->
@@ -34,7 +34,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <!-- Font Awesome 6 (Iconos profesionales) -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+          integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+          crossorigin="anonymous"
+          referrerpolicy="no-referrer">
 
 <!-- Estilos: base compartida + hoja exclusiva de esta página -->
 <link rel="stylesheet" href="css/base/_tokens.css">
@@ -45,6 +49,8 @@
 </head>
 <body>
 
+<a href="#contenido" class="skip-link">Saltar al contenido</a>
+
 <!-- =========================================================
      NAVBAR
      ========================================================= -->
@@ -52,7 +58,7 @@
   <div class="container">
     <a href="#inicio" class="brand">
       <span class="brand-mark" data-icon="logo"></span>
-      <span>Mecánica Total<small>Educación automotriz</small></span>
+      <span class="brand-copy"><span class="brand-title">MeKa <img src="img/nut.svg" class="brand-nut" alt="" aria-hidden="true" width="24" height="24"> Total</span><small>Educación automotriz</small></span>
     </a>
     <nav class="nav-links" aria-label="Navegación principal">
       <a href="#inicio">Inicio</a>
@@ -60,10 +66,9 @@
       <a href="#cursos">Cursos</a>
       <a href="#contacto">Contacto</a>
       <a href="cursos.html" class="btn btn--ghost btn--sm">Comenzar a aprender</a>
-      <a href="admin.html" class="Login">
-        <span class="fa-regular fa-circle-user"></span>
+      <a href="admin.html" class="nav-account" aria-label="Acceso al panel de administración">
+        <i class="fa-regular fa-circle-user" aria-hidden="true"></i>
       </a>
-
     </nav>
     <button class="nav-toggle" aria-label="Abrir menú" aria-expanded="false">
       <span></span><span></span><span></span>
@@ -71,14 +76,14 @@
   </div>
 </header>
 
-<main>
+<main id="contenido">
   <!-- =========================================================
        HERO
        ========================================================= -->
   <section class="hero" id="inicio">
     <div class="container">
       <div class="hero-copy">
-        <p class="eyebrow"> PLATAFORMA EDUCATIVA GRATUITA</p>
+        <p class="eyebrow eyebrow--on-dark">PLATAFORMA EDUCATIVA GRATUITA</p>
         <h1>APRENDE <span class="hero-highlight">MECÁNICA</span> AUTOMOTRIZ DESDE CERO</h1>
         <p>Comprende cómo funciona un vehículo, aprende sus principales sistemas y descubre los fundamentos del diagnóstico automotriz mediante OBD-II.</p>
         <div class="hero-actions">
@@ -142,15 +147,15 @@
     <div class="container">
       <div class="about-lead reveal">
         <div class="about-copy">
-          <p class="eyebrow"> NOSOTROS</p>
+          <p class="eyebrow">NOSOTROS</p>
           <h2 class="about-title">EDUCACIÓN TÉCNICA SIN BARRERAS</h2>
-          <p class="about-intro-text">Mecánica Total nace de una idea simple: el conocimiento técnico debería estar al alcance de todos. Creamos una plataforma educativa gratuita para acercar la mecánica automotriz a quienes quieren comprender cómo funciona un vehículo, aprender a mantenerlo y dar sus primeros pasos en el mundo de la mecánica.</p>
+          <p class="about-intro-text">MeKa Total nace de una idea simple: el conocimiento técnico debería estar al alcance de todos. Creamos una plataforma educativa gratuita para acercar la mecánica automotriz a quienes quieren comprender cómo funciona un vehículo, aprender a mantenerlo y dar sus primeros pasos en el mundo de la mecánica.</p>
         </div>
 
         <div class="about-why-card reveal">
           <div class="why-card-header">
             <div class="why-icon"><i class="fa-solid fa-shield-halved"></i></div>
-            <h4>¿POR QUÉ MECÁNICA TOTAL?</h4>
+            <h4>¿POR QUÉ MEKA TOTAL?</h4>
           </div>
           <p class="why-lead-text">Hacemos que aprender mecánica sea más accesible, claro y progresivo.</p>
           <ul class="why-benefits-list">
@@ -165,7 +170,7 @@
         <article class="about-card reveal">
           <div class="icon"><i class="fa-solid fa-users"></i></div>
           <h3>Quiénes somos</h3>
-          <p>Mecánica Total es un proyecto educativo enfocado en acercar el conocimiento técnico de la mecánica a cualquier persona que quiera aprender.</p>
+          <p>MeKa Total es un proyecto educativo enfocado en acercar el conocimiento técnico de la mecánica a cualquier persona que quiera aprender.</p>
         </article>
 
         <article class="about-card reveal">
@@ -195,7 +200,7 @@
   <section class="section section--alt" id="cursos">
     <div class="container">
       <div class="section-head section-head--wide reveal text-center mx-auto">
-        <p class="eyebrow"> METODOLOGÍA DE APRENDIZAJE</p>
+        <p class="eyebrow">METODOLOGÍA DE APRENDIZAJE</p>
         <h2>APRENDE PASO A PASO</h2>
         <p>Una metodología progresiva para comprender, observar, aplicar y comprobar tus conocimientos de mecánica automotriz.</p>
         <div class="methodology-note">
@@ -208,13 +213,13 @@
       <div class="learning-path-wrapper reveal">
         <!-- Track conector visual en desktop -->
         <div class="learning-track-line" aria-hidden="true">
-          <div class="track-node node--1"><span>01</span></div>
+          <div class="track-node"><span>01</span></div>
           <div class="track-line"></div>
-          <div class="track-node node--2"><span>02</span></div>
+          <div class="track-node"><span>02</span></div>
           <div class="track-line"></div>
-          <div class="track-node node--3"><span>03</span></div>
+          <div class="track-node"><span>03</span></div>
           <div class="track-line"></div>
-          <div class="track-node node--4"><span>04</span></div>
+          <div class="track-node"><span>04</span></div>
         </div>
 
         <div class="learning-path-grid">
@@ -311,44 +316,43 @@
 
       <!-- Columna izquierda: contacto -->
       <div class="contact-info-card">
-        <p class="eyebrow"> HABLEMOS</p>
+        <p class="eyebrow eyebrow--on-dark">HABLEMOS</p>
 
         <h3>¿Tienes una duda o una idea?</h3>
 
         <p>
-          Mecánica Total es un proyecto educativo en constante construcción.
+          MeKa Total es un proyecto educativo en constante construcción.
           Si tienes una pregunta, encuentras un error o quieres sugerir un tema
           para aprender, nos gustaría escucharte.
         </p>
-        
-        <p class="eyebrow"> ESCRÍBENOS </p>
-          
+
+        <p class="eyebrow eyebrow--on-dark">ESCRÍBENOS</p>
 
         <div class="contact-line">
-          <i class="fa-solid fa-envelope icon-accent"></i>
-          <a href="mailto:contacto@mecanicatotal.cl">
-            contacto@mecanicatotal.cl
+          <i class="fa-solid fa-envelope" aria-hidden="true"></i>
+          <a href="mailto:mekatotalcorreo@gmail.com">
+            mekatotalcorreo@gmail.com
           </a>
         </div>
 
         <div class="contact-line">
-          <i class="fa-solid fa-clock icon-accent"></i>
+          <i class="fa-solid fa-clock" aria-hidden="true"></i>
           <span>
             Respondemos durante la semana, según la disponibilidad del equipo.
           </span>
         </div>
 
         <div class="contact-line">
-          <i class="fa-solid fa-comments icon-accent"></i>
+          <i class="fa-solid fa-comments" aria-hidden="true"></i>
           <span>
             Tus preguntas y sugerencias nos ayudan a mejorar el proyecto.
           </span>
         </div>
 
         <ul class="contact-promise">
-          <li><i class="fa-solid fa-circle-check icon-accent"></i> <span>Acceso libre al contenido educativo.</span></li>
-          <li><i class="fa-solid fa-circle-check icon-accent"></i> <span>Sin necesidad de crear una cuenta para comenzar.</span></li>
-          <li><i class="fa-solid fa-circle-check icon-accent"></i> <span>Aprende paso a paso y avanza a tu propio ritmo.</span></li>
+          <li><i class="fa-solid fa-circle-check" aria-hidden="true"></i> <span>Acceso libre al contenido educativo.</span></li>
+          <li><i class="fa-solid fa-circle-check" aria-hidden="true"></i> <span>Sin necesidad de crear una cuenta para comenzar.</span></li>
+          <li><i class="fa-solid fa-circle-check" aria-hidden="true"></i> <span>Aprende paso a paso y avanza a tu propio ritmo.</span></li>
         </ul>
       </div>
 
@@ -394,8 +398,9 @@
           <p class="cf-note" data-form-note role="status" aria-live="polite"></p>
 
           <p class="cf-legal">
-            Al enviar el formulario aceptas nuestra
-            <a href="privacidad.html">política de privacidad</a>.
+            Al enviar el formulario aceptas que tratemos tu nombre, correo y mensaje para
+            responder tu consulta, conforme a la
+            <a href="privacidad.html">política de privacidad</a>. No incluyas datos sensibles.
           </p>
         </form>
       </div>
@@ -414,7 +419,7 @@
       <div class="footer-brand">
         <a href="#inicio" class="brand">
           <span class="brand-mark" data-icon="logo"></span>
-          <span>Mecánica Total<small>Educación automotriz</small></span>
+          <span class="brand-copy"><span class="brand-title">MeKa <img src="img/nut.svg" class="brand-nut" alt="" aria-hidden="true" width="24" height="24"> Total</span><small>Educación automotriz</small></span>
         </a>
         <p>Plataforma educativa gratuita para aprender mecánica automotriz de forma clara, progresiva y accesible.</p>
         <!--
@@ -461,7 +466,7 @@
 
     <div class="footer-bottom">
       <p class="footer-motto">"El conocimiento técnico debería estar al alcance de todos."</p>
-      <span class="footer-copy">© 2026 Mecánica Total · Proyecto educativo</span>
+      <span class="footer-copy">© 2026 MeKa Total · Proyecto educativo</span>
     </div>
   </div>
 </footer>
@@ -487,10 +492,11 @@
         integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK"
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="js/env.js"></script>
+<script src="js/analytics.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/supabaseConfig.js"></script>
 <script src="js/icons.js"></script>
-<script src="js/boot.js"></script>
+<script src="js/notify.js"></script>
 <script src="js/dbService.js"></script>
 <script src="js/richText.js"></script>
 <script src="js/script.js"></script>

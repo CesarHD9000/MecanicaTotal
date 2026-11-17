@@ -1,5 +1,5 @@
 # ============================================================================
-# robots.txt — Mecánica Total
+# robots.txt — MeKa Total
 # ----------------------------------------------------------------------------
 # MODO PRUEBA: mientras el sitio no esté listo para el público, cambia
 # `Allow: /` por `Disallow: /` para que ningún buscador lo indexe.
@@ -12,4 +12,4 @@ Allow: /
 Disallow: /admin.html
 Disallow: /js/env.js
 
-Sitemap: https://mecanicatotal.cl/sitemap.xml
+Sitemap: https://mekatotal.cl/sitemap.xml

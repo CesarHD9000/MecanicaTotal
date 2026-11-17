@@ -6,14 +6,23 @@
 # Formato: bloque con el patrón de URL + líneas indentadas "Nombre: valor".
 # Límites de Cloudflare: 100 bloques y 2.000 caracteres por línea.
 # ============================================================================
+#
+# Nota M-03: img-src/media-src usan `https:` y `data:` a propósito. El panel
+# de admin permite enlazar imágenes/vídeos externos (https://…) y subir
+# archivos (data:…). Acotar a dominios concretos rompería esa función mientras
+# el contenido siga almacenándose así. Al migrar el multimedia a Storage (A-02),
+# restringe aquí img-src/media-src a 'self' + el host del bucket.
+#
+# ----------------------------------------------------------------------------
 
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: https:; media-src 'self' data: blob: https:; frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://static.cloudflareinsights.com; style-src 'self' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: https:; media-src 'self' data: blob: https:; frame-src https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://cloudflareinsights.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=(), usb=()
   Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: credentialless
   Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
   X-Permitted-Cross-Domain-Policies: none
 
@@ -22,13 +31,17 @@
   X-Robots-Tag: noindex, nofollow, noarchive
   Cache-Control: no-store, max-age=0
 
-# Credenciales generadas en el build: nunca cachear
-/js/env.js
-  Cache-Control: no-store, max-age=0
-  X-Robots-Tag: noindex, nofollow
-
+# JS: la regla general va primero y la excepción la desacopla después.
+# Cloudflare une con comas los Cache-Control repetidos; sin este `!` el
+# no-store de env.js se mezclaría con el max-age=3600 de /js/*.
 /js/*
   Cache-Control: public, max-age=3600, must-revalidate
+
+# Credenciales generadas en el build: nunca cachear
+/js/env.js
+  ! Cache-Control
+  Cache-Control: no-store, max-age=0
+  X-Robots-Tag: noindex, nofollow
 
 /css/*
   Cache-Control: public, max-age=86400, must-revalidate

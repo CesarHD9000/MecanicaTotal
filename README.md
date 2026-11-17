@@ -1,4 +1,4 @@
-# Mecánica Total
+# MeKa Total
 
 Plataforma educativa gratuita de mecánica automotriz. Sitio estático (HTML, CSS y
 JavaScript sin frameworks) con Supabase como base de datos y autenticación.
@@ -21,13 +21,13 @@ mecanica/
 │   └── _headers         Cabeceras de seguridad para Cloudflare
 │
 ├── scripts/
-│   ├── build-env.mjs    Genera public/js/env.js desde variables de entorno
-│   └── dev-server.mjs   Servidor local con la misma CSP que producción
+│   ├── build-env.mjs      Genera public/js/env.js desde variables de entorno
+│   ├── dev-server.mjs     Servidor local con la misma CSP que producción
+│   └── audit-classes.mjs  Detecta clases usadas sin CSS en la página (npm run audit:css)
 │
 ├── .env.example         Plantilla de credenciales
-├── .gitignore · .vercelignore
+├── .gitignore
 ├── package.json
-├── vercel.json          Build y cabeceras (Vercel)
 └── wrangler.jsonc       Assets estáticos (Cloudflare Workers)
 ```
 
@@ -47,15 +47,27 @@ código se niega a inicializar con ella.
 
 ## Despliegue
 
-Build command en ambas plataformas: `node scripts/build-env.mjs`. Variables de
-entorno: `SUPABASE_URL` y `SUPABASE_ANON_KEY`.
+Plataforma: **Cloudflare Workers** (assets estáticos). Es la única configurada:
+`wrangler.jsonc` publica `public/`, `public/_headers` aplica la CSP y
+`not_found_handling` sirve `public/404.html` con estado 404.
 
-**Cloudflare Workers** — conecta el repositorio, define el build y usa como deploy
-command `npx wrangler deploy`. `wrangler.jsonc` publica `public/` y
-`public/_headers` aplica la CSP.
+Build command: `node scripts/build-env.mjs`
+Deploy command: `npx wrangler deploy`
 
-**Vercel** — importa el repositorio y define las mismas variables. `vercel.json`
-ya declara el build, el directorio de salida y las cabeceras.
+En **Workers Builds**, `SUPABASE_URL`, `SUPABASE_ANON_KEY` y (opcional)
+`CF_ANALYTICS_TOKEN` van en **Settings → Build → Build variables and secrets**,
+no en las variables de runtime: el build los necesita para generar
+`public/js/env.js` antes de publicar.
+
+**Analítica.** `js/analytics.js` carga el beacon de Cloudflare Web Analytics solo
+si `CF_ANALYTICS_TOKEN` está definido en el build. La CSP ya permite
+`static.cloudflareinsights.com` en `script-src` y `cloudflareinsights.com` en
+`connect-src`; sin esas entradas el beacon se bloquea en silencio. No usa
+cookies, así que no hace falta banner de consentimiento.
+
+> Si además activas la inyección automática de Web Analytics en el panel,
+> desactívala para no cargar el beacon dos veces: este proyecto lo carga a mano
+> para que funcione también en `*.workers.dev`.
 
 ## Seguridad
 
@@ -74,7 +86,7 @@ ya declara el build, el directorio de salida y las cabeceras.
 | `utils.js` | Saneamiento: `escapeHtml`, `safeUrl`, `formatVideoUrl`, `safeIcon` |
 | `supabaseConfig.js` | Lectura de credenciales y creación del cliente |
 | `dbService.js` | Consultas y escrituras, sesión y rol de administrador |
-| `icons.js` / `boot.js` | Catálogo de iconos SVG y su pintado en el DOM |
+| `icons.js` | Registro de iconos (lista blanca de `day.icon`), helper `icon()` y pintado de `[data-icon]` |
 | `richText.js` | Renderizador del texto enriquecido de la teoría |
 | `script.js` | Navbar, hero, cursos, quiz, lightbox, contacto |
 | `admin.js` | Panel de administración |

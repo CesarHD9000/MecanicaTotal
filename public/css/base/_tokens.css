@@ -1,38 +1,99 @@
 /* ==========================================================================
-   MECÁNICA TOTAL — 00. TOKENS DE DISEÑO
+   MEKA TOTAL — 00. TOKENS DE DISEÑO
    Única fuente de verdad para color, tipografía, espaciado, forma y tiempos.
    Todo el sitio consume estas variables: cambiar un valor aquí lo cambia en
-   las tres páginas. Nada más debe declarar colores "sueltos".
+   las cinco páginas. Nada más debe declarar colores "sueltos".
+
+   REGLA DE COLOR
+   Cada color tiene una versión plana (--c-x) y una versión en canales RGB
+   (--c-x-rgb). La primera se usa para pintar; la segunda, para transparencias:
+     background: rgb(var(--c-accent-rgb) / .12);
+   Los canales se declaran separados por espacios, no por comas: la sintaxis
+   `rgb(15 32 54 / .9)` es válida, `rgb(15, 32, 54 / .9)` no lo es y el
+   navegador descarta la declaración entera.
    ========================================================================== */
 
 :root{
-  /* --- Color -------------------------------------------------------------
+  /* --- Color · marca -----------------------------------------------------
      Paleta "taller nocturno": azul acero, rojo freno, naranja torque. */
   --c-primary:      #1E3A5F;   /* azul acero — marca / navbar */
   --c-primary-dark: #0F2036;   /* azul profundo — hero, footer */
   --c-primary-mid:  #16314F;
   --c-secondary:    #D62828;   /* rojo freno — alertas / CTA secundario */
   --c-accent:       #F77F00;   /* naranja torque — foco / aguja del medidor */
-  --c-accent-soft:  #FFE1B8;
-  --c-accent-dark:  #E07200;   /* naranja en estado hover */
+
+  --c-primary-rgb:      30 58 95;
+  --c-primary-dark-rgb: 15 32 54;
+  --c-secondary-rgb:    214 40 40;
+  --c-accent-rgb:       247 127 0;
+
+  /* --- Color · estados y variantes --------------------------------------- */
+  --c-secondary-dark: #C01F1F; /* rojo en estado hover */
+  --c-accent-dark:    #E07200; /* naranja en estado hover */
+
+  /* --- Color · neutros --------------------------------------------------- */
   --c-bg:           #F8F9FA;
   --c-bg-alt:       #EFF2F5;
+  --c-bg-hover:     #E6ECF5;   /* superficie al pasar el cursor */
+  --c-bg-active:    #EEF3F9;   /* superficie del ítem seleccionado */
+  --c-bg-active-rgb: 238 243 249;
+  --c-row-hover:    #F4F7FA;   /* fila de tabla */
   --c-surface:      #FFFFFF;
   --c-border:       #E1E5EA;
   --c-text:         #1B1F24;
   --c-text-muted:   #5B6572;
+  --c-placeholder:  #9AA4B0;
   --c-white:        #FFFFFF;
-  --c-success:      #2E7D32;
-  --c-danger:       #C62828;
+  --c-black:        #000000;
 
-  /* Fondos oscuros específicos de componentes (footer, diagramas) */
+  /* Fondos oscuros específicos de componentes (footer, portadas) */
   --c-deep:         #0B1622;
   --c-deep-2:       #0B192C;
 
-  /* --- Tipografía -------------------------------------------------------- */
+  /* --- Color · semánticos ------------------------------------------------ */
+  --c-success:      #2E7D32;
+  --c-danger:       #C62828;
+  --c-success-dark: #246528;   /* verde en estado hover */
+  --c-success-rgb:  46 125 50;
+  --c-danger-rgb:   198 40 40;
+  --c-success-soft: #E9F6EA;
+  --c-danger-soft:  #FBEAEA;
+
+  /* --- Color · acentos de apoyo -----------------------------------------
+     Acentos secundarios usados en iconografía temática (diagnóstico, video,
+     estado en línea). No son parte de la paleta de marca: si se unifican,
+     este es el único sitio donde hay que tocarlos. */
+  --c-info:      #00B4D8;      /* cian — diagnóstico / OBD */
+  --c-info-alt:  #4895EF;      /* azul claro — sistemas */
+  --c-video:     #00A896;      /* verde azulado — video */
+  --c-online:    #2ECC71;      /* verde de estado "en línea" */
+  --c-info-rgb:      0 180 216;
+  --c-info-alt-rgb:  72 149 239;
+  --c-video-rgb:     0 168 150;
+  --c-info-soft: #F0F5FA;      /* fondo de bloque informativo */
+  --c-note-bg:   #FFF6E8;      /* fondo de nota destacada */
+
+  /* --- Tipografía · familias --------------------------------------------- */
   --f-display: 'Plus Jakarta Sans', 'Poppins', system-ui, sans-serif;
   --f-body:    'Inter', system-ui, -apple-system, sans-serif;
   --f-mono:    'JetBrains Mono', 'Courier New', monospace;
+
+  /* --- Tipografía · escala ----------------------------------------------
+     Una sola escala modular para todo el sitio. Ningún archivo debe volver
+     a escribir un font-size en rem a mano: si falta un tamaño, se añade aquí.
+     Los titulares fluidos (h1/h2 de sección) usan clamp() y no entran aquí. */
+  --text-3xs:  .55rem;   /*  8.8 px — micro-etiqueta de la marca        */
+  --text-2xs:  .68rem;   /* 10.9 px — metadatos en mono                 */
+  --text-xs:   .75rem;   /* 12.0 px — etiquetas, badges, pills          */
+  --text-sm:   .85rem;   /* 13.6 px — interfaz secundaria               */
+  --text-base: .95rem;   /* 15.2 px — cuerpo compacto                   */
+  --text-md:   1rem;     /* 16.0 px — cuerpo                            */
+  --text-lg:   1.1rem;   /* 17.6 px — subtítulos                        */
+  --text-xl:   1.3rem;   /* 20.8 px — título de tarjeta                 */
+  --text-2xl:  1.5rem;   /* 24.0 px — título de bloque                  */
+  --text-3xl:  1.8rem;   /* 28.8 px — título de página                  */
+  --text-4xl:  2.8rem;   /* 44.8 px — cifra destacada                   */
+  --text-5xl:  3.5rem;   /* 56.0 px — icono destacado / placeholder      */
 
   /* --- Espaciado --------------------------------------------------------- */
   --space-1: .5rem;
@@ -46,13 +107,15 @@
   --radius-s: 4px;
   --radius-m: 10px;
   --radius-l: 18px;
-  --shadow-s: 0 2px 8px rgba(15,32,54,.08);
-  --shadow-m: 0 10px 30px rgba(15,32,54,.12);
-  --shadow-l: 0 20px 50px rgba(15,32,54,.22);
+  --shadow-s: 0 2px 8px rgb(var(--c-primary-dark-rgb) / .08);
+  --shadow-m: 0 10px 30px rgb(var(--c-primary-dark-rgb) / .12);
+  --shadow-l: 0 20px 50px rgb(var(--c-primary-dark-rgb) / .22);
 
   /* --- Movimiento -------------------------------------------------------- */
   --ease: cubic-bezier(.4,0,.2,1);
 
-  /* --- Medidas de layout ------------------------------------------------ */
+  /* --- Medidas de layout ------------------------------------------------
+     El texto de lectura ocupa el ancho completo de su tarjeta (decisión de
+     diseño del proyecto): no se limita la medida de línea. */
   --nav-h: 76px;
 }

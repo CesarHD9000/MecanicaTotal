@@ -1,5 +1,5 @@
 /* ==========================================================================
-   MECÁNICA TOTAL — 02. LAYOUT COMPARTIDO
+   MEKA TOTAL — 02. LAYOUT COMPARTIDO
    Piezas de estructura y cromo que aparecen en las tres páginas:
    navbar, footer y componentes flotantes (lightbox, volver arriba).
    ========================================================================== */
@@ -10,33 +10,43 @@
 .navbar{
   position:fixed; inset:0 0 auto 0; height:var(--nav-h); z-index:1000;
   display:flex; align-items:center;
-  background:rgba(15,32,54,.0);
+  background:rgb(var(--c-primary-dark-rgb) / .0);
   transition:background .35s var(--ease), box-shadow .35s var(--ease), height .3s var(--ease);
 }
 .navbar.is-scrolled{
-  background:rgba(15,32,54,.94); backdrop-filter:blur(8px);
+  background:rgb(var(--c-primary-dark-rgb) / .94); backdrop-filter:blur(8px);
   box-shadow:0 8px 24px rgba(0,0,0,.25); height:64px;
 }
 .navbar .container{ display:flex; align-items:center; justify-content:space-between; }
 
-/* Variante para páginas sin hero oscuro: fondo sólido siempre legible */
-.navbar--solid{
-  background:var(--c-primary-dark) !important;
-  box-shadow:0 4px 20px rgba(0,0,0,.3) !important;
+/* Variante para páginas sin hero oscuro: fondo sólido siempre legible.
+   Se escribe como .navbar.navbar--solid para ganarle a .navbar.is-scrolled
+   sin necesidad de !important. */
+.navbar.navbar--solid{
+  background:var(--c-primary-dark);
+  box-shadow:0 4px 20px rgba(0,0,0,.3);
 }
 
 /* Marca / logotipo */
 .brand{
   display:flex; align-items:center; gap:.6em; color:var(--c-white);
-  font-family:var(--f-display); font-size:1.25rem; text-transform:uppercase; letter-spacing:.03em;
+  font-family:var(--f-display); font-size:var(--text-xl); text-transform:uppercase; letter-spacing:.03em;
+  white-space:nowrap;
 }
 .brand-mark{ width:36px; height:36px; flex-shrink:0; }
-.brand small{ display:block; font-family:var(--f-mono); font-size:.55rem; letter-spacing:.18em; color:var(--c-accent); font-weight:600; }
+/* El nombre conserva su mezcla de cajas ("MeKa"); solo la bajada va en versales. */
+.brand-copy{ display:flex; flex-direction:column; }
+.brand-title{ text-transform:none; }
+.brand-nut{
+  display:inline-block; width:.72em; height:.72em; margin-inline:.12em;
+  vertical-align:-.06em;
+}
+.brand small{ display:block; font-family:var(--f-mono); font-size:var(--text-3xs); letter-spacing:.18em; color:var(--c-accent); font-weight:600; }
 
 /* Enlaces de navegación */
 .nav-links{ display:flex; align-items:center; gap:var(--space-4); }
 .nav-links a{
-  color:var(--c-white); font-family:var(--f-display); text-transform:uppercase; font-size:.88rem;
+  color:var(--c-white); font-family:var(--f-display); text-transform:uppercase; font-size:var(--text-sm);
   letter-spacing:.06em; position:relative; padding-block:.4em;
 }
 .nav-links a::after{
@@ -45,6 +55,22 @@
 }
 .nav-links a:hover::after, .nav-links a.is-active::after{ width:100%; }
 .nav-links .btn{ margin-left:var(--space-1); }
+
+/* Acceso al panel: botón circular de 40px, área táctil suficiente y estado
+   visible al pasar el cursor. Es solo icono, así que necesita aria-label.
+   Se escribe como .nav-links .nav-account para ganarle a `.nav-links a`. */
+.nav-links .nav-account{
+  width:40px; height:40px; flex-shrink:0; border-radius:50%; padding:0;
+  display:inline-flex; align-items:center; justify-content:center;
+  color:var(--c-white); background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.28); font-size:var(--text-lg);
+  transition:background .25s var(--ease), border-color .25s var(--ease), transform .25s var(--ease);
+}
+.nav-links .nav-account::after{ content:none; }
+.nav-links .nav-account:hover{
+  background:rgb(var(--c-accent-rgb) / .18); border-color:var(--c-accent);
+  transform:translateY(-2px);
+}
 
 /* Botón hamburguesa */
 .nav-toggle{
@@ -60,22 +86,22 @@
    -------------------------------------------------------------------------- */
 .footer{ background:var(--c-deep); color:var(--c-white); padding-top:var(--space-5); }
 .footer-grid{ display:grid; grid-template-columns:1.5fr 1fr 1fr 1fr; gap:var(--space-4); padding-bottom:var(--space-4); }
-.footer-brand p{ color:rgba(255,255,255,.72); margin:var(--space-2) 0; font-size:.92rem; line-height:1.6; max-width:36ch; }
+.footer-brand p{ color:rgba(255,255,255,.72); margin:var(--space-2) 0; font-size:var(--text-base); line-height:1.6; max-width:36ch; }
 .footer .brand{ margin-bottom:.4em; }
 .footer h4{
-  font-size:.85rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em;
+  font-size:var(--text-sm); font-weight:700; text-transform:uppercase; letter-spacing:.08em;
   color:var(--c-accent); margin-bottom:var(--space-2); font-family:var(--f-mono);
 }
 .footer ul li{ margin-bottom:.6em; }
-.footer ul a{ color:rgba(255,255,255,.72); font-size:.92rem; transition:color .2s, padding-left .2s; }
+.footer ul a{ color:rgba(255,255,255,.72); font-size:var(--text-base); transition:color .2s, padding-left .2s; }
 .footer ul a:hover{ color:var(--c-white); padding-left:4px; }
 
 .footer-bottom{
   border-top:1px solid rgba(255,255,255,.1); padding-block:1.4rem; display:flex; flex-direction:column;
-  align-items:center; text-align:center; gap:.4rem; font-size:.84rem; color:rgba(255,255,255,.55);
+  align-items:center; text-align:center; gap:.4rem; font-size:var(--text-sm); color:rgba(255,255,255,.55);
 }
-.footer-motto{ font-family:var(--f-mono); font-size:.85rem; color:rgba(255,255,255,.68); font-style:italic; margin:0; }
-.footer-copy{ font-size:.82rem; color:rgba(255,255,255,.5); }
+.footer-motto{ font-family:var(--f-mono); font-size:var(--text-sm); color:rgba(255,255,255,.68); font-style:italic; margin:0; }
+.footer-copy{ font-size:var(--text-sm); color:rgba(255,255,255,.5); }
 .footer-bottom a{ color:rgba(255,255,255,.5); }
 .footer-bottom a:hover{ color:var(--c-accent); }
 
@@ -86,7 +112,7 @@
   display:flex; align-items:center; justify-content:center; transition:background .25s, transform .25s;
 }
 .social-links a:hover{ background:var(--c-accent); transform:translateY(-3px); }
-.social-links svg, .social-links i{ width:16px; height:16px; font-size:1rem; color:var(--c-white); }
+.social-links i{ width:16px; height:16px; font-size:var(--text-md); color:var(--c-white); }
 
 /* --------------------------------------------------------------------------
    Back to top
@@ -98,8 +124,8 @@
   transition:opacity .3s, visibility .3s, transform .3s, background .25s; z-index:900;
 }
 .back-to-top.is-visible{ opacity:1; visibility:visible; transform:none; }
-.back-to-top:hover{ background:#a81f1f; }
-.back-to-top svg{ width:18px; height:18px; }
+.back-to-top:hover{ background:var(--c-secondary-dark); }
+.back-to-top i{ font-size:var(--text-lg); }
 
 /* --------------------------------------------------------------------------
    Lightbox (visor de imágenes ampliadas)
@@ -116,18 +142,11 @@
 }
 .lightbox.is-open .lightbox-content{ transform:scale(1); }
 .lightbox-media{ padding:var(--space-3); background:var(--c-bg-alt); }
-.lightbox-caption{ padding:var(--space-2) var(--space-3); font-size:.9rem; color:var(--c-text-muted); }
+.lightbox-caption{ padding:var(--space-2) var(--space-3); font-size:var(--text-base); color:var(--c-text-muted); }
 .lightbox-close{
   position:absolute; top:24px; right:24px; width:44px; height:44px; border-radius:50%;
   background:rgba(255,255,255,.1); color:var(--c-white); display:flex; align-items:center; justify-content:center;
   transition:background .25s, transform .25s;
 }
 .lightbox-close:hover{ background:rgba(255,255,255,.22); transform:rotate(90deg); }
-.lightbox-close svg{ width:18px; height:18px; }
-
-/* --------------------------------------------------------------------------
-   Iconos SVG inline inyectados por JS (ancho completo de su contenedor)
-   -------------------------------------------------------------------------- */
-.brand-mark svg,
-.about-card .icon svg,
-.contact-line svg{ width:100%; height:100%; }
+.lightbox-close i{ font-size:var(--text-lg); }

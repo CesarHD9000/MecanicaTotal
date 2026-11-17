@@ -1,26 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://mecanicatotal.cl/</loc>
+    <loc>https://mekatotal.cl/</loc>
     <lastmod>2026-10-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://mecanicatotal.cl/cursos.html</loc>
+    <loc>https://mekatotal.cl/cursos.html</loc>
     <lastmod>2026-10-20</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://mecanicatotal.cl/privacidad.html</loc>
-    <lastmod>2026-10-20</lastmod>
+    <loc>https://mekatotal.cl/privacidad.html</loc>
+    <lastmod>2026-11-16</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://mecanicatotal.cl/terminos.html</loc>
-    <lastmod>2026-10-20</lastmod>
+    <loc>https://mekatotal.cl/terminos.html</loc>
+    <lastmod>2026-11-16</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>

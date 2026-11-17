@@ -3,20 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Plataforma de Cursos — Mecánica Total</title>
+<title>Plataforma de Cursos — MeKa Total</title>
 <meta name="description" content="Aprende Mecánica Automotriz con nuestro esquema de lecciones interactivas. Árbol de navegación lateral con teoría, esquemas vectoriales ampliables y cuestionarios.">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<link rel="canonical" href="https://mecanicatotal.cl/cursos.html">
+<link rel="canonical" href="https://mekatotal.cl/cursos.html">
 
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 
 <meta property="og:type" content="website">
-<meta property="og:locale" content="es_AR">
-<meta property="og:title" content="Catálogo y Lecciones — Mecánica Total">
+<meta property="og:locale" content="es_CL">
+<meta property="og:title" content="Catálogo y Lecciones — MeKa Total">
 <meta property="og:description" content="Lecciones interactivas de mecánica automotriz: teoría, guía visual, video y evaluación por día.">
-<meta property="og:url" content="https://mecanicatotal.cl/cursos.html">
-<meta property="og:image" content="https://mecanicatotal.cl/img/og-cover.jpg">
+<meta property="og:url" content="https://mekatotal.cl/cursos.html">
+<meta property="og:image" content="https://mekatotal.cl/img/og-cover.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#1E3A5F">
 
@@ -25,7 +25,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <!-- Font Awesome 6 (Iconos profesionales) -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+          integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+          crossorigin="anonymous"
+          referrerpolicy="no-referrer">
 
 <!-- Estilos: base compartida + hoja exclusiva de esta página -->
 <link rel="stylesheet" href="css/base/_tokens.css">
@@ -37,6 +41,8 @@
 </head>
 <body>
 
+<a href="#contenido" class="skip-link">Saltar al contenido</a>
+
 <!-- =========================================================
      NAVBAR (Fijo con fondo oscuro sólido siempre legible)
      ========================================================= -->
@@ -44,13 +50,16 @@
   <div class="container">
     <a href="index.html#inicio" class="brand">
       <span class="brand-mark" data-icon="logo"></span>
-      <span>Mecánica Total<small>Educación automotriz</small></span>
+      <span class="brand-copy"><span class="brand-title">MeKa <img src="img/nut.svg" class="brand-nut" alt="" aria-hidden="true" width="24" height="24"> Total</span><small>Educación automotriz</small></span>
     </a>
     <nav class="nav-links" aria-label="Navegación principal">
       <a href="index.html#inicio">Inicio</a>
       <a href="index.html#nosotros">Nosotros</a>
       <a href="index.html#cursos">Cursos</a>
       <a href="index.html#contacto">Contacto</a>
+      <a href="admin.html" class="nav-account" aria-label="Acceso al panel de administración">
+        <i class="fa-regular fa-circle-user" aria-hidden="true"></i>
+      </a>
     </nav>
     <button class="nav-toggle" aria-label="Abrir menú" aria-expanded="false">
       <span></span><span></span><span></span>
@@ -58,20 +67,28 @@
   </div>
 </header>
 
-<main class="page-offset">
+<main class="page-offset" id="contenido">
   <section class="section section--alt section--flush-top">
     <div class="container">
       <div class="section-head section-head--wide reveal section-head--tight text-center mx-auto">
         <p class="eyebrow">Ruta de aprendizaje interactiva</p>
-        <h2>Catálogo y Lecciones de Mecánica Automotriz</h2>
+        <h1>Catálogo y Lecciones de Mecánica Automotriz</h1>
       </div>
 
       <!-- =========================================================
            LAYOUT LMS: ÁRBOL LATERAL (IZQUIERDA) + ZONA CENTRAL
            ========================================================= -->
       <div class="lms-container">
+        <!-- Índice plegable: solo se muestra en tablet y móvil -->
+        <button type="button" class="lms-index-toggle" id="lmsIndexToggle"
+                aria-expanded="false" aria-controls="lmsSidebar">
+          <i class="fa-solid fa-list-ul" aria-hidden="true"></i>
+          <span>Índice del curso</span>
+          <i class="fa-solid fa-chevron-down lms-index-caret" aria-hidden="true"></i>
+        </button>
+
         <!-- ÁRBOL NAVEGACIÓN LATERAL (IZQUIERDA) -->
-        <aside class="lms-sidebar reveal">
+        <aside class="lms-sidebar reveal" id="lmsSidebar">
           <div class="lms-sidebar-head">
             <h4>Índice de Cursos</h4>
             <div class="search-box">
@@ -103,7 +120,7 @@
       <div class="footer-brand">
         <a href="#inicio" class="brand">
           <span class="brand-mark" data-icon="logo"></span>
-          <span>Mecánica Total<small>Educación automotriz</small></span>
+          <span class="brand-copy"><span class="brand-title">MeKa <img src="img/nut.svg" class="brand-nut" alt="" aria-hidden="true" width="24" height="24"> Total</span><small>Educación automotriz</small></span>
         </a>
         <p>Plataforma educativa gratuita para aprender mecánica automotriz de forma clara, progresiva y accesible.</p>
         <!--
@@ -148,7 +165,7 @@
 
     <div class="footer-bottom">
       <p class="footer-motto">"El conocimiento técnico debería estar al alcance de todos."</p>
-      <span class="footer-copy">© 2026 Mecánica Total · Proyecto educativo</span>
+      <span class="footer-copy">© 2026 MeKa Total · Proyecto educativo</span>
     </div>
   </div>
 </footer>
@@ -174,10 +191,11 @@
         integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK"
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="js/env.js"></script>
+<script src="js/analytics.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/supabaseConfig.js"></script>
 <script src="js/icons.js"></script>
-<script src="js/boot.js"></script>
+<script src="js/notify.js"></script>
 <script src="js/dbService.js"></script>
 <script src="js/richText.js"></script>
 <script src="js/script.js"></script>

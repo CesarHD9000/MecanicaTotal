@@ -1,0 +1,13 @@
+# security.txt — RFC 9116
+# Canal oficial para reportar vulnerabilidades de MeKa Total.
+# Mantener la fecha Expires a menos de un año vista.
+
+Contact: mailto:mekatotalcorreo@gmail.com
+Expires: 2027-10-26T00:00:00.000Z
+Preferred-Languages: es, en
+Canonical: https://mekatotal.cl/.well-known/security.txt
+Policy: https://mekatotal.cl/privacidad.html
+
+# Alcance: sitio público (mekatotal.cl) y su panel de administración.
+# Fuera de alcance: ataques de denegación de servicio, spam y pruebas sobre
+# cuentas de terceros.

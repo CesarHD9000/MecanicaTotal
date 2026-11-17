@@ -1,14 +1,15 @@
 /* ==========================================================================
-   MECÁNICA TOTAL — 03. RESPONSIVE COMPARTIDO
+   MEKA TOTAL — 03. RESPONSIVE COMPARTIDO
    Puntos de quiebre que afectan a componentes de base (navbar, footer,
    layout general). Los ajustes responsive de cada página viven en su
    propio archivo, no aquí.
 
    Escala de breakpoints del proyecto (única, no inventar otras):
      --bp-lg : 1024px
-     --bp-md : 992px
-     --bp-sm : 768px
-     --bp-xs : 480px
+     --bp-md :  992px
+     --bp-ml :  850px   (solo para el paso a una columna del bloque de contacto)
+     --bp-sm :  768px
+     --bp-xs :  480px
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
@@ -19,24 +20,27 @@
 }
 
 /* --------------------------------------------------------------------------
-   ≤ 992px
+   ≤ 992px — el menú completo ya no cabe (4 enlaces + CTA + acceso), así que
+   pasa a panel deslizante antes que el resto del layout.
    -------------------------------------------------------------------------- */
 @media (max-width:992px){
-}
-
-/* --------------------------------------------------------------------------
-   ≤ 768px — menú lateral deslizante
-   -------------------------------------------------------------------------- */
-@media (max-width:768px){
   .nav-links{
-    position:fixed; inset:0 0 0 auto; width:min(78vw,320px); height:100vh; flex-direction:column;
+    position:fixed; inset:0 0 0 auto; width:min(78vw,320px); height:100vh; height:100dvh; flex-direction:column;
     background:var(--c-primary-dark); padding:calc(var(--nav-h) + 24px) var(--space-3) var(--space-3);
     align-items:flex-start; gap:var(--space-3); transform:translateX(100%); transition:transform .4s var(--ease);
     box-shadow:-10px 0 40px rgba(0,0,0,.3);
   }
   .nav-links.is-open{ transform:translateX(0); }
-  .nav-links a{ font-size:1.1rem; width:100%; }
+  .nav-links a{ font-size:var(--text-lg); width:100%; }
+  /* El acceso al panel sigue siendo un círculo dentro del menú desplegable */
+  .nav-links .nav-account{ width:40px; }
   .nav-toggle{ display:flex; }
+}
+
+/* --------------------------------------------------------------------------
+   ≤ 768px
+   -------------------------------------------------------------------------- */
+@media (max-width:768px){
   .footer-grid{ grid-template-columns:1fr; }
 }
 

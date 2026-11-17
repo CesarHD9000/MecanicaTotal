@@ -36,6 +36,37 @@ function readJwtRole(token) {
   }
 }
 
+/* Supabase convive con dos generaciones de claves y esta app debe aceptar ambas
+   para poder migrar sin romper el sitio:
+
+     legacy  · JWT firmado con el JWT secret del proyecto
+               pública   → role "anon"          (empieza por "eyJ")
+               privada   → role "service_role"
+     nueva   · cadenas opacas, no son JWT
+               pública   → "sb_publishable_…"
+               privada   → "sb_secret_…"
+
+   La pública es pública por diseño: viaja al navegador y la puede leer
+   cualquiera. Lo que protege los datos es la RLS de Postgres, no esta clave.
+   La privada omite RLS y nunca debe llegar al cliente. */
+const PUBLIC_KEY_PREFIX = 'sb_publishable_';
+const SECRET_KEY_PREFIX = 'sb_secret_';
+
+/* Clasifica la clave: 'public' | 'privileged' | 'unknown' | 'missing' */
+function classifySupabaseKey(key) {
+  const value = String(key || '').trim();
+  if (!value) return 'missing';
+  if (value.startsWith(SECRET_KEY_PREFIX)) return 'privileged';
+  if (value.startsWith(PUBLIC_KEY_PREFIX)) return 'public';
+  if (value.startsWith('eyJ')) {
+    const role = readJwtRole(value);
+    if (role === 'service_role') return 'privileged';
+    if (role === 'anon') return 'public';
+    return 'unknown';
+  }
+  return 'unknown';
+}
+
 /* Comprueba que la configuración existe y tiene forma válida.
    Devuelve { ok, reason } para poder mostrar un diagnóstico claro. */
 function validateSupabaseConfig(config = SUPABASE_CONFIG) {
@@ -45,12 +76,12 @@ function validateSupabaseConfig(config = SUPABASE_CONFIG) {
   if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(config.url)) {
     return { ok: false, reason: 'BAD_URL' };
   }
-  const role = readJwtRole(config.anonKey);
-  if (role === 'service_role') {
+  const kind = classifySupabaseKey(config.anonKey);
+  if (kind === 'privileged') {
     // Nunca debe llegar aquí una clave de servicio: da acceso total a la BD.
     return { ok: false, reason: 'PRIVILEGED_KEY' };
   }
-  if (role !== 'anon') {
+  if (kind !== 'public') {
     return { ok: false, reason: 'BAD_KEY' };
   }
   return { ok: true, reason: null };
@@ -78,8 +109,9 @@ if (typeof supabase !== 'undefined') {
     }
   } else if (check.reason === 'PRIVILEGED_KEY') {
     console.error(
-      '[Supabase] BLOQUEADO: la clave configurada es "service_role". ' +
-      'Esa clave omite RLS y nunca debe usarse en el navegador. Usa la clave "anon".'
+      '[Supabase] BLOQUEADO: la clave configurada es privada ("service_role" o "sb_secret_…"). ' +
+      'Esa clave omite RLS y nunca debe usarse en el navegador. Usa la clave pública ' +
+      '("anon" o "sb_publishable_…").'
     );
   } else if (check.reason === 'MISSING') {
     console.warn(

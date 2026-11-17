@@ -20,6 +20,10 @@ const DbService = (() => {
 
   const getClient = () => window.supabaseClient;
 
+  // Bucket público de Supabase Storage donde se guardan imágenes y vídeos
+  // (mitigación A-02). Crearlo en Supabase → Storage y marcarlo "público".
+  const MEDIA_BUCKET = 'media';
+
   const ERR = {
     CONNECTION: 'CONNECTION',
     INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
@@ -39,12 +43,13 @@ const DbService = (() => {
   // --------------------------------------------------------------------------
   function mapQuestion(q) {
     const sortedOptions = (q.question_options || []).slice().sort((a, b) => a.order_index - b.order_index);
-    const correctIdx = sortedOptions.findIndex(o => o.is_correct);
+    const correctIdx = sortedOptions.findIndex(o => o.is_correct === true);
     return {
       id: q.id,
       q: q.question_text,
       options: sortedOptions.map(o => o.option_text),
-      correct: correctIdx >= 0 ? correctIdx : 0
+      optionIds: sortedOptions.map(o => o.id),
+      correct: correctIdx >= 0 ? correctIdx : null   // null = no disponible (público)
     };
   }
 
@@ -84,6 +89,7 @@ const DbService = (() => {
       shortDesc: lesson.short_description || '',
       objective: lesson.objective || '',
       introContent: lesson.intro_content || '',
+      quizId: dailyQuiz ? dailyQuiz.id : null,
       sections: {
         theory: {
           mainTitle: lesson.title,
@@ -126,9 +132,9 @@ const DbService = (() => {
     }
   }
 
-  /* Comprueba el rol contra `public.profiles`.
-     Primero intenta la RPC `is_admin()` (SECURITY DEFINER, no expone la tabla);
-     si aún no está desplegada, consulta el propio perfil. */
+  /* Comprueba el rol contra la RPC `is_admin()` (SECURITY DEFINER).
+     Verificado contra la BD: la función existe y es SECURITY DEFINER, así que
+     no hace falta el fallback directo a `public.profiles` (superficie redundante). */
   async function isAdminUser(userId) {
     const client = getClient();
     if (!client || !userId) return false;
@@ -137,20 +143,9 @@ const DbService = (() => {
       const { data, error } = await client.rpc('is_admin');
       if (!error && typeof data === 'boolean') return data;
     } catch (err) {
-      // La RPC puede no existir todavía: se continúa con la consulta directa.
+      // La RPC no está disponible o falló: no se concede acceso.
     }
-
-    try {
-      const { data, error } = await client
-        .from('profiles')
-        .select('role')
-        .eq('id', userId)
-        .maybeSingle();
-      if (error || !data) return false;
-      return data.role === 'admin';
-    } catch (err) {
-      return false;
-    }
+    return false;
   }
 
   /* Guardia de escritura: exige sesión + rol admin antes de tocar la BD.
@@ -168,9 +163,28 @@ const DbService = (() => {
   // --------------------------------------------------------------------------
   // CONSULTAS PÚBLICAS (Lecciones y Cursos)
   // --------------------------------------------------------------------------
+  /* ¿Hay sesión autenticada? Se usa para decidir si incluir `is_correct`:
+     solo el panel (autenticado) necesita las respuestas para editar. El resto
+     del tiempo las respuestas NO viajan al navegador (mitigación M-01). */
+  async function hasAuthSession() {
+    const client = getClient();
+    if (!client) return false;
+    try {
+      const { data } = await client.auth.getSession();
+      return Boolean(data && data.session && data.session.user);
+    } catch (err) {
+      return false;
+    }
+  }
+
   async function getAllDays() {
     const client = getClient();
     if (!client) return [];
+
+    const includeAnswers = await hasAuthSession();
+    const optsSel = includeAnswers
+      ? 'question_options(id, order_index, option_text, is_correct)'
+      : 'question_options(id, order_index, option_text)';
 
     try {
       const { data, error } = await client
@@ -195,7 +209,7 @@ const DbService = (() => {
               id,
               order_index,
               question_text,
-              question_options(id, order_index, option_text, is_correct)
+              ${optsSel}
             )
           )
         `)
@@ -203,19 +217,27 @@ const DbService = (() => {
 
       if (error) {
         console.error('[DbService] Error al consultar lecciones:', error.message);
-        return [];
+        // Se propaga en vez de devolver []: un fallo de red y una base de datos
+        // sin lecciones no son lo mismo, y la interfaz debe poder distinguirlos.
+        throw fail('DB_ERROR', 'No se pudo cargar el temario.');
       }
 
       return (data || []).map(mapLessonFromDb);
     } catch (err) {
+      if (err && err.code) throw err;           // error ya normalizado
       console.error('[DbService] Error inesperado en getAllDays.');
-      return [];
+      throw fail('CONNECTION', 'No se pudo conectar con la base de datos.');
     }
   }
 
   async function getFinalQuiz() {
     const client = getClient();
-    if (!client) return [];
+    if (!client) return null;
+
+    const includeAnswers = await hasAuthSession();
+    const optsSel = includeAnswers
+      ? 'question_options(id, order_index, option_text, is_correct)'
+      : 'question_options(id, order_index, option_text)';
 
     try {
       const { data, error } = await client
@@ -228,18 +250,38 @@ const DbService = (() => {
             id,
             order_index,
             question_text,
-            question_options(id, order_index, option_text, is_correct)
+            ${optsSel}
           )
         `)
         .eq('quiz_type', 'final')
         .limit(1)
         .maybeSingle();
 
-      if (error || !data) return [];
-      return mapFinalQuizFromDb(data);
+      if (error || !data) return null;
+      return { id: data.id, questions: mapFinalQuizFromDb(data) };
     } catch (err) {
       console.error('[DbService] Error inesperado en getFinalQuiz.');
-      return [];
+      return null;
+    }
+  }
+
+  /* Corrige un cuestionario en el servidor (RPC grade_quiz, SECURITY DEFINER)
+     y devuelve { correct, total } sin exponer la opción correcta por pregunta. */
+  async function gradeQuiz(quizId, answers) {
+    const client = getClient();
+    if (!client || !quizId) return null;
+    try {
+      const { data, error } = await client.rpc('grade_quiz', {
+        p_quiz_id: quizId,
+        p_answers: answers || []
+      });
+      if (error) {
+        console.warn('[DbService] grade_quiz:', error.message);
+        return null;
+      }
+      return data || null;
+    } catch (err) {
+      return null;
     }
   }
 
@@ -280,18 +322,76 @@ const DbService = (() => {
       intro_content: dayObj.introContent || ''
     };
 
-    const { data: lesson, error: lessonErr } = await client
-      .from('lessons')
-      .upsert(lessonPayload, { onConflict: 'course_id,day_number' })
-      .select('id')
-      .single();
+    let lessonId;
 
-    if (lessonErr || !lesson) {
-      console.error('[DbService] Error al guardar la lección:', lessonErr && lessonErr.message);
-      throw fail('DB_ERROR', 'No se pudo guardar la lección.');
+    if (dayObj.dbId) {
+      /* Edición. Si cambió el número, se mueve el registro existente: un upsert
+         por (curso, día) crearía un día nuevo y dejaría huérfano el anterior. */
+      const { data: actual, error: readErr } = await client
+        .from('lessons')
+        .select('id, day_number')
+        .eq('id', dayObj.dbId)
+        .maybeSingle();
+
+      if (readErr) throw fail('DB_ERROR', 'No se pudo leer la lección.');
+      if (!actual) throw fail('VALIDATION', 'La lección ya no existe. Recarga el panel.');
+
+      if (actual.day_number !== dayNumber) {
+        const { data: ocupado } = await client
+          .from('lessons')
+          .select('id')
+          .eq('course_id', courseId)
+          .eq('day_number', dayNumber)
+          .maybeSingle();
+
+        if (ocupado) throw fail('DUPLICATE_DAY', `Ya existe una lección con el día ${dayNumber}.`);
+
+        const { error: moveErr } = await client
+          .from('lessons')
+          .update({ day_number: dayNumber })
+          .eq('id', dayObj.dbId);
+
+        if (moveErr) throw fail('DB_ERROR', 'No se pudo cambiar el número del día.');
+      }
+
+      const { error: updateErr } = await client
+        .from('lessons')
+        .update(lessonPayload)
+        .eq('id', dayObj.dbId);
+
+      if (updateErr) {
+        console.error('[DbService] Error al actualizar la lección:', updateErr.message);
+        throw fail('DB_ERROR', 'No se pudo guardar la lección.');
+      }
+
+      lessonId = dayObj.dbId;
+    } else {
+      /* Alta. Se comprueba el número antes de insertar: el upsert anterior
+         sobrescribía en silencio la lección de otro día. */
+      const { data: ocupado } = await client
+        .from('lessons')
+        .select('id')
+        .eq('course_id', courseId)
+        .eq('day_number', dayNumber)
+        .maybeSingle();
+
+      if (ocupado) {
+        throw fail('DUPLICATE_DAY', `El día ${dayNumber} ya existe. Edítalo en lugar de crearlo.`);
+      }
+
+      const { data: created, error: insertErr } = await client
+        .from('lessons')
+        .insert(lessonPayload)
+        .select('id')
+        .single();
+
+      if (insertErr || !created) {
+        console.error('[DbService] Error al crear la lección:', insertErr && insertErr.message);
+        throw fail('DB_ERROR', 'No se pudo guardar la lección.');
+      }
+
+      lessonId = created.id;
     }
-
-    const lessonId = lesson.id;
     const sections = dayObj.sections || {};
 
     // --- Subsecciones: se reemplazan en bloque ---
@@ -447,11 +547,15 @@ const DbService = (() => {
     const day = parseInt(dayNumber, 10);
     if (!Number.isInteger(day)) throw fail('VALIDATION', 'Número de día inválido.');
 
+    const courseId = await resolveCourseId(client);
+
+    /* Filtrado por curso: sin él, dos cursos con el mismo número de día
+       compartirían cuestionario y se guardaría en el equivocado. */
     const { data: lesson } = await client
       .from('lessons')
       .select('id')
+      .eq('course_id', courseId)
       .eq('day_number', day)
-      .limit(1)
       .maybeSingle();
 
     if (!lesson) throw fail('VALIDATION', 'La lección no existe.');
@@ -550,6 +654,61 @@ const DbService = (() => {
   }
 
   // --------------------------------------------------------------------------
+  // BANDEJA DE CONTACTO (solo admin)
+  // --------------------------------------------------------------------------
+  /* Lista los mensajes recibidos. Se pide `*` a propósito: si la migración que
+     añade `status`/`replied_at` todavía no se ejecutó, la consulta sigue
+     funcionando y la vista trata el estado ausente como "nuevo". */
+  async function listContactMessages() {
+    const client = getClient();
+    if (!client) throw fail(ERR.CONNECTION, 'Sin conexión con la base de datos.');
+    await requireAdmin();
+
+    const { data, error } = await client
+      .from('contact_messages')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[DbService] Error al leer los mensajes:', error.message);
+      throw fail('DB_ERROR', 'No se pudieron cargar los mensajes.');
+    }
+    return data || [];
+  }
+
+  /* Cambia el estado de un mensaje: 'nuevo' | 'respondido'. */
+  async function setContactMessageStatus(id, status) {
+    const client = getClient();
+    if (!client) throw fail(ERR.CONNECTION, 'Sin conexión con la base de datos.');
+    await requireAdmin();
+
+    const patch = { status: status === 'respondido' ? 'respondido' : 'nuevo' };
+    if (patch.status === 'respondido') patch.replied_at = new Date().toISOString();
+    else patch.replied_at = null;
+
+    const { error } = await client.from('contact_messages').update(patch).eq('id', id);
+    if (error) {
+      console.error('[DbService] Error al actualizar el mensaje:', error.message);
+      // El caso más probable: falta ejecutar la migración de la columna status.
+      throw fail('DB_ERROR', 'No se pudo actualizar el mensaje. ¿Ejecutaste la migración de la bandeja?');
+    }
+    return true;
+  }
+
+  async function deleteContactMessage(id) {
+    const client = getClient();
+    if (!client) throw fail(ERR.CONNECTION, 'Sin conexión con la base de datos.');
+    await requireAdmin();
+
+    const { error } = await client.from('contact_messages').delete().eq('id', id);
+    if (error) {
+      console.error('[DbService] Error al eliminar el mensaje:', error.message);
+      throw fail('DB_ERROR', 'No se pudo eliminar el mensaje.');
+    }
+    return true;
+  }
+
+  // --------------------------------------------------------------------------
   // AUTENTICACIÓN ADMIN
   // --------------------------------------------------------------------------
   /* Devuelve SIEMPRE un código, nunca un texto distinto según el caso: la vista
@@ -607,15 +766,46 @@ const DbService = (() => {
     }
   }
 
+  /* Sube un archivo a Supabase Storage y devuelve su URL pública.
+     Sustituye a guardar archivos en base64 dentro de la BD (mitigación A-02). */
+  async function uploadMedia(file, folder = 'media') {
+    const client = getClient();
+    if (!client || !file) throw fail(ERR.CONNECTION, 'No se pudo subir el archivo.');
+
+    const safeName = String(file.name || 'archivo')
+      .normalize('NFKD')
+      .replace(/[^\w.-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    const ext = (safeName.split('.').pop() || 'bin').toLowerCase().slice(0, 10);
+    const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+    const { error } = await client.storage
+      .from(MEDIA_BUCKET)
+      .upload(path, file, { cacheControl: '31536000', upsert: false });
+
+    if (error) {
+      console.error('[DbService] Error al subir a Storage:', error.message);
+      throw fail('DB_ERROR', 'No se pudo subir el archivo.');
+    }
+
+    const { data: pub } = client.storage.from(MEDIA_BUCKET).getPublicUrl(path);
+    return pub && pub.publicUrl ? pub.publicUrl : '';
+  }
+
   return {
     ERR,
     getAllDays,
     getFinalQuiz,
+    gradeQuiz,
+    uploadMedia,
     saveDay,
     deleteDay,
     saveQuiz,
     saveFinalQuiz,
     sendContactMessage,
+    listContactMessages,
+    setContactMessageStatus,
+    deleteContactMessage,
     formatVideoUrl: (url) => Utils.formatVideoUrl(url),
     login,
     logout,
