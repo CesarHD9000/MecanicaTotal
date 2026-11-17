@@ -69,7 +69,7 @@ const server = createServer(async (req, res) => {
       'Referrer-Policy': 'strict-origin-when-cross-origin',
       'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), payment=(), usb=()',
       'Cross-Origin-Opener-Policy': 'same-origin',
-      'Cross-Origin-Embedder-Policy': 'credentialless',
+      // Sin COEP: los iframes de YouTube/Vimeo no lo envían y se bloquearían.
       'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
       'X-Permitted-Cross-Domain-Policies': 'none',
       'Cache-Control': 'no-store'
