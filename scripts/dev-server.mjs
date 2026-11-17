@@ -49,6 +49,19 @@ const CSP = [
   "upgrade-insecure-requests"
 ].join('; ');
 
+const SECURITY_HEADERS = {
+  'Content-Security-Policy': CSP,
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), payment=(), usb=()',
+  'Cross-Origin-Opener-Policy': 'same-origin',
+  // Sin COEP: los iframes de YouTube/Vimeo no lo envían y se bloquearían.
+  'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
+  'X-Permitted-Cross-Domain-Policies': 'none',
+  'Cache-Control': 'no-store'
+};
+
 const server = createServer(async (req, res) => {
   try {
     const urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
@@ -63,21 +76,20 @@ const server = createServer(async (req, res) => {
     const body = await readFile(filePath);
     res.writeHead(200, {
       'Content-Type': MIME[extname(filePath).toLowerCase()] || 'application/octet-stream',
-      'Content-Security-Policy': CSP,
-      'X-Content-Type-Options': 'nosniff',
-      'X-Frame-Options': 'DENY',
-      'Referrer-Policy': 'strict-origin-when-cross-origin',
-      'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), payment=(), usb=()',
-      'Cross-Origin-Opener-Policy': 'same-origin',
-      // Sin COEP: los iframes de YouTube/Vimeo no lo envían y se bloquearían.
-      'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
-      'X-Permitted-Cross-Domain-Policies': 'none',
-      'Cache-Control': 'no-store'
+      ...SECURITY_HEADERS
     });
     res.end(body);
   } catch (err) {
-    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('404 — ' + (req.url || ''));
+    // Misma semántica que Cloudflare (not_found_handling: 404-page): una URL
+    // inexistente devuelve public/404.html con estado 404 y sus estilos.
+    try {
+      const notFound = await readFile(join(ROOT, '404.html'));
+      res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8', ...SECURITY_HEADERS });
+      res.end(notFound);
+    } catch (err404) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', ...SECURITY_HEADERS });
+      res.end('404 — ' + (req.url || ''));
+    }
   }
 });
 

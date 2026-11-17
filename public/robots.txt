@@ -12,4 +12,4 @@ Allow: /
 Disallow: /admin.html
 Disallow: /js/env.js
 
-Sitemap: https://mekatotal.cl/sitemap.xml
+Sitemap: https://meka-total.mekatotalcorreo.workers.dev/sitemap.xml

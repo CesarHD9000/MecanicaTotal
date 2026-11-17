@@ -34,11 +34,11 @@
   X-Robots-Tag: noindex, nofollow, noarchive
   Cache-Control: no-store, max-age=0
 
-# JS: la regla general va primero y la excepción la desacopla después.
-# Cloudflare une con comas los Cache-Control repetidos; sin este `!` el
-# no-store de env.js se mezclaría con el max-age=3600 de /js/*.
+# JS: la regla general va primero y `env.js` la desacopla después con `!`.
+# Sin caché larga: si no, un deploy deja HTML nuevo con JS viejo y el panel
+# se rompe (por ejemplo, un handler que busca un botón eliminado).
 /js/*
-  Cache-Control: public, max-age=3600, must-revalidate
+  Cache-Control: public, max-age=0, must-revalidate
 
 # Credenciales generadas en el build: nunca cachear
 /js/env.js
@@ -47,7 +47,7 @@
   X-Robots-Tag: noindex, nofollow
 
 /css/*
-  Cache-Control: public, max-age=86400, must-revalidate
+  Cache-Control: public, max-age=0, must-revalidate
 
 /img/*
   Cache-Control: public, max-age=604800, must-revalidate

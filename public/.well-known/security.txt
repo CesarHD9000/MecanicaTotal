@@ -5,9 +5,9 @@
 Contact: mailto:mekatotalcorreo@gmail.com
 Expires: 2027-10-26T00:00:00.000Z
 Preferred-Languages: es, en
-Canonical: https://mekatotal.cl/.well-known/security.txt
-Policy: https://mekatotal.cl/privacidad.html
+Canonical: https://meka-total.mekatotalcorreo.workers.dev/.well-known/security.txt
+Policy: https://meka-total.mekatotalcorreo.workers.dev/privacidad.html
 
-# Alcance: sitio público (mekatotal.cl) y su panel de administración.
+# Alcance: sitio público (meka-total.mekatotalcorreo.workers.dev) y su panel de administración.
 # Fuera de alcance: ataques de denegación de servicio, spam y pruebas sobre
 # cuentas de terceros.
