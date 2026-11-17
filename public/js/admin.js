@@ -177,7 +177,14 @@
       tableBody.querySelectorAll('[data-action="delete"]').forEach(btn => {
         btn.addEventListener('click', async () => {
           const day = btn.dataset.day;
-          if (!confirm(`¿Estás seguro de que deseas eliminar el Día ${day}?\nEsta acción no se puede deshacer.`)) return;
+          const ok = await Notify.confirm({
+            title: `Eliminar Día ${day}`,
+            message: 'Se borrarán la lección, su teoría, galería, video y cuestionario.\nEsta acción no se puede deshacer.',
+            confirmText: 'Eliminar lección',
+            cancelText: 'Cancelar',
+            danger: true
+          });
+          if (!ok) return;
           try {
             await DbService.deleteDay(day);
             await renderDashboard();
@@ -229,6 +236,95 @@
       if (dias === 1) return 'Ayer';
       return new Intl.DateTimeFormat('es-CL', { day: '2-digit', month: 'short' }).format(d);
     };
+
+    let replyDialogEl = null;
+
+    /* Vista previa de la respuesta en un <dialog> del sitio.
+       Sustituye al mailto: del navegador, que abría el selector de aplicación
+       externa y no daba ninguna confirmación dentro del panel. */
+    function openReplyDialog({ nombre, email, asunto, cuerpo }) {
+      if (replyDialogEl && replyDialogEl.open) replyDialogEl.close();
+
+      const dialog = document.createElement('dialog');
+      dialog.className = 'reply-dialog';
+      dialog.setAttribute('aria-labelledby', 'replyDialogTitle');
+      dialog.innerHTML = `
+        <div class="reply-dialog__body">
+          <h2 class="reply-dialog__title" id="replyDialogTitle"></h2>
+          <p class="reply-dialog__meta">
+            Para: <strong data-reply-email></strong><br>
+            Asunto: <span data-reply-subject></span>
+          </p>
+          <label class="reply-dialog__label" for="replyDialogText">Mensaje</label>
+          <textarea class="reply-dialog__text" id="replyDialogText" spellcheck="true"></textarea>
+        </div>
+        <div class="reply-dialog__actions">
+          <button type="button" class="btn btn--outline btn--sm" data-reply-copy>Copiar respuesta</button>
+          <button type="button" class="btn btn--primary btn--sm" data-reply-gmail>Abrir Gmail</button>
+          <button type="button" class="btn btn--ghost-dark btn--sm" data-reply-close>Cerrar</button>
+        </div>
+      `;
+
+      dialog.querySelector('.reply-dialog__title').textContent = `Responder a ${nombre || 'este contacto'}`;
+      dialog.querySelector('[data-reply-email]').textContent = email || '—';
+      dialog.querySelector('[data-reply-subject]').textContent = asunto;
+
+      const textarea = dialog.querySelector('#replyDialogText');
+      textarea.value = cuerpo;
+
+      const close = () => {
+        if (dialog.open) dialog.close();
+      };
+
+      dialog.querySelector('[data-reply-close]').addEventListener('click', close);
+      dialog.addEventListener('click', event => {
+        if (event.target === dialog) close();
+      });
+      dialog.addEventListener('cancel', event => {
+        event.preventDefault();
+        close();
+      });
+      dialog.addEventListener('close', () => {
+        dialog.remove();
+        if (replyDialogEl === dialog) replyDialogEl = null;
+      });
+
+      dialog.querySelector('[data-reply-copy]').addEventListener('click', async () => {
+        const texto = textarea.value;
+        let copiado = false;
+        try {
+          await navigator.clipboard.writeText(texto);
+          copiado = true;
+        } catch (err) {
+          textarea.focus();
+          textarea.select();
+          try { copiado = document.execCommand('copy'); } catch (err2) { copiado = false; }
+        }
+        if (copiado) Notify.success('Respuesta copiada. Pégala en tu correo.');
+        else Notify.error('No se pudo copiar. Selecciona el texto y cópialo manualmente.');
+      });
+
+      dialog.querySelector('[data-reply-gmail]').addEventListener('click', () => {
+        const url = 'https://mail.google.com/mail/?view=cm&fs=1' +
+          `&to=${encodeURIComponent(email || '')}` +
+          `&su=${encodeURIComponent(asunto)}` +
+          `&body=${encodeURIComponent(textarea.value)}`;
+        const win = window.open(url, '_blank', 'noopener,noreferrer');
+        if (!win) Notify.error('El navegador bloqueó la pestaña. Copia la respuesta y pégala en tu correo.');
+      });
+
+      document.body.appendChild(dialog);
+      replyDialogEl = dialog;
+      try {
+        dialog.showModal();
+      } catch (err) {
+        dialog.remove();
+        replyDialogEl = null;
+        Notify.error('No se pudo abrir la vista previa de la respuesta.');
+        return;
+      }
+      textarea.focus();
+    }
 
     function inboxMatches(msg) {
       if (inboxFilter !== 'all' && inboxStatusOf(msg) !== inboxFilter) return false;
@@ -334,9 +430,9 @@
         <div class="inbox-detail-head">
           <div>
             <p class="inbox-detail-name">${escapeHtml(nombre)}</p>
-            <a class="inbox-detail-mail" href="mailto:${escapeHtml(msg.email || '')}">
+            <button type="button" class="inbox-detail-mail" data-inbox-copy-email title="Copiar correo">
               <i class="fa-solid fa-envelope" aria-hidden="true"></i> ${escapeHtml(msg.email || '—')}
-            </a>
+            </button>
           </div>
           <div class="inbox-detail-status">
             <span class="inbox-chip inbox-chip--${estado}">
@@ -353,14 +449,14 @@
           <label class="inbox-reply-label" for="inboxReplyText">Tu respuesta</label>
           <textarea id="inboxReplyText" spellcheck="true">${escapeHtml(`Hola ${nombre},\n\nGracias por escribir a MeKa Total.\n\n`)}</textarea>
           <p class="inbox-reply-hint">
-            El botón abre tu programa de correo con el mensaje ya escrito y el texto original citado.
-            El envío real necesita un proveedor de correo configurado; desde aquí queda registrado como respondido.
+            Copia la respuesta o ábrela en Gmail. El envío real se hace desde tu correo;
+            después márcala como respondida con el botón de abajo.
           </p>
         </div>
 
         <div class="inbox-actions">
           <button type="button" class="btn btn--primary btn--sm" data-inbox-reply>
-            <i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Abrir en tu correo
+            <i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Preparar respuesta
           </button>
           <button type="button" class="btn btn--outline btn--sm" data-inbox-toggle>
             ${estado === 'respondido' ? 'Marcar como nueva' : 'Marcar como respondida'}
@@ -378,13 +474,22 @@
         renderInboxDetail();
       });
 
+      inboxDetail.querySelector('[data-inbox-copy-email]')?.addEventListener('click', async () => {
+        const email = String(msg.email || '').trim();
+        if (!email) return;
+        try {
+          await navigator.clipboard.writeText(email);
+          Notify.success('Correo copiado.');
+        } catch (err) {
+          Notify.error('No se pudo copiar el correo.');
+        }
+      });
+
       inboxDetail.querySelector('[data-inbox-reply]')?.addEventListener('click', () => {
         const texto = inboxDetail.querySelector('#inboxReplyText').value.trim();
         const cuerpo = `${texto}\n\n---\nTu mensaje original:\n${msg.message || ''}`;
         const asunto = 'Re: Tu consulta en MeKa Total';
-        window.location.href =
-          `mailto:${encodeURIComponent(msg.email || '')}` +
-          `?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
+        openReplyDialog({ nombre, email: msg.email || '', asunto, cuerpo });
       });
 
       inboxDetail.querySelector('[data-inbox-toggle]')?.addEventListener('click', async (e) => {
@@ -406,7 +511,14 @@
       });
 
       inboxDetail.querySelector('[data-inbox-delete]')?.addEventListener('click', async (e) => {
-        if (!confirm(`¿Eliminar el mensaje de ${nombre}?\n\nEsta acción no se puede deshacer.`)) return;
+        const ok = await Notify.confirm({
+          title: 'Eliminar mensaje',
+          message: `¿Eliminar el mensaje de ${nombre}?\nEsta acción no se puede deshacer.`,
+          confirmText: 'Eliminar mensaje',
+          cancelText: 'Cancelar',
+          danger: true
+        });
+        if (!ok) return;
         e.currentTarget.disabled = true;
         try {
           await DbService.deleteContactMessage(msg.id);
@@ -597,7 +709,9 @@
       location.hash = hash;   // dispara hashchange → applyRoute
     }
 
-    function applyRoute() {
+    let routeSeq = 0;
+    async function applyRoute() {
+      const seq = ++routeSeq;
       const route = parseRoute();
       const key = routeKeyOf(route);
 
@@ -609,9 +723,14 @@
         (currentRouteKey.startsWith('editor|') || currentRouteKey.startsWith('quiz-final|'));
 
       if (estabaEditando && window.LessonEditor && LessonEditor.isDirty()) {
-        const salir = window.confirm(
-          'Tienes cambios sin guardar en este contenido.\n¿Salir y descartarlos?'
-        );
+        const salir = await Notify.confirm({
+          title: 'Cambios sin guardar',
+          message: 'Tienes cambios sin guardar en este contenido.\n¿Salir y descartarlos?',
+          confirmText: 'Descartar y salir',
+          cancelText: 'Seguir editando',
+          danger: true
+        });
+        if (seq !== routeSeq) return;
         if (!salir) {
           history.replaceState(null, '', appliedHash);
           return;
@@ -913,12 +1032,6 @@
         btn.addEventListener('click', () => navigateTo(`#lecciones/dia-${btn.dataset.previewEdit}`));
       });
     }
-
-    // Sincronizar datos desde la BD
-    document.getElementById('btnResetData').addEventListener('click', async () => {
-      if (!confirm('¿Recargar los datos desde la base de datos de Supabase?')) return;
-      await renderDashboard();
-    });
 
     // ------------------------------------------------------------------------
     // AUTENTICACIÓN

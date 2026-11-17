@@ -692,15 +692,22 @@
     if (btn && !btn.disabled) btn.focus();
   }
 
-  function removeSubsection(index) {
+  async function removeSubsection(index) {
     const items = subsections();
     const item = items[index];
     if (!item) return;
 
     const hasContent = trimmed(item.subtitle) || trimmed(item.content);
-    if (hasContent && !window.confirm(
-      '¿Eliminar esta subsección y todo su contenido?\nEl cambio se aplica al guardar.'
-    )) return;
+    if (hasContent) {
+      const ok = await Notify.confirm({
+        title: 'Eliminar subsección',
+        message: 'Se eliminará el subtítulo y todo su contenido.\nEl cambio se aplica al guardar.',
+        confirmText: 'Eliminar subsección',
+        cancelText: 'Cancelar',
+        danger: true
+      });
+      if (!ok) return;
+    }
 
     items.splice(index, 1);
     state.selected.theory = items.length ? Math.min(index, items.length - 1) : null;
@@ -977,14 +984,21 @@
     renderGallery();
   }
 
-  function removeGalleryItem(index) {
+  async function removeGalleryItem(index) {
     const items = galleryItems();
     const item = items[index];
     if (!item) return;
 
-    if (trimmed(item.image) && !window.confirm(
-      '¿Quitar esta imagen de la galería?\nEl cambio se aplica al guardar.'
-    )) return;
+    if (trimmed(item.image)) {
+      const ok = await Notify.confirm({
+        title: 'Quitar imagen',
+        message: 'La imagen se quitará de la galería.\nEl cambio se aplica al guardar.',
+        confirmText: 'Quitar imagen',
+        cancelText: 'Cancelar',
+        danger: true
+      });
+      if (!ok) return;
+    }
 
     items.splice(index, 1);
     state.selected.gallery = items.length ? Math.min(index, items.length - 1) : null;
@@ -1272,15 +1286,22 @@
     renderQuizDetail();
   }
 
-  function removeQuestion(index) {
+  async function removeQuestion(index) {
     const items = quizItems();
     const question = items[index];
     if (!question) return;
 
     const hasContent = trimmed(question.q) || question.options.some(o => trimmed(o));
-    if (hasContent && !window.confirm(
-      '¿Eliminar esta pregunta y sus alternativas?\nEl cambio se aplica al guardar.'
-    )) return;
+    if (hasContent) {
+      const ok = await Notify.confirm({
+        title: 'Eliminar pregunta',
+        message: 'Se eliminará la pregunta y todas sus alternativas.\nEl cambio se aplica al guardar.',
+        confirmText: 'Eliminar pregunta',
+        cancelText: 'Cancelar',
+        danger: true
+      });
+      if (!ok) return;
+    }
 
     items.splice(index, 1);
     state.selected.quiz = items.length ? Math.min(index, items.length - 1) : null;

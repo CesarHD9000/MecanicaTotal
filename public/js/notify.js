@@ -23,6 +23,7 @@ const Notify = (() => {
   };
 
   let stackEl = null;
+  let confirmEl = null;
 
   function stack() {
     if (stackEl && stackEl.isConnected) return stackEl;
@@ -105,12 +106,100 @@ const Notify = (() => {
     }
   }
 
+  /* --------------------------------------------------------------------------
+     DIÁLOGO DE CONFIRMACIÓN
+     Sustituye a window.confirm() por un <dialog> del propio sitio:
+       const ok = await Notify.confirm({
+         title: 'Eliminar lección',
+         message: 'Esta acción no se puede deshacer.',
+         confirmText: 'Eliminar',
+         danger: true
+       });
+     Devuelve true si se confirma y false si se cancela (botón o Escape).
+     -------------------------------------------------------------------------- */
+  function confirmAction(options = {}) {
+    const title = String(options.title || 'Confirmar acción');
+    const message = String(options.message || '');
+    const confirmText = String(options.confirmText || 'Aceptar');
+    const cancelText = String(options.cancelText || 'Cancelar');
+    const danger = options.danger === true;
+
+    // Solo un diálogo a la vez: si ya hay uno, se cancela.
+    if (confirmEl && confirmEl.open) confirmEl.close('cancel');
+
+    return new Promise(resolve => {
+      const dialog = document.createElement('dialog');
+      dialog.className = `confirm-dialog${danger ? ' confirm-dialog--danger' : ''}`;
+      dialog.setAttribute('aria-labelledby', 'confirmDialogTitle');
+      dialog.setAttribute('aria-describedby', 'confirmDialogText');
+      dialog.innerHTML = `
+        <div class="confirm-dialog__body">
+          <div class="confirm-dialog__icon" aria-hidden="true">
+            <i class="fa-solid ${danger ? 'fa-triangle-exclamation' : 'fa-circle-question'}"></i>
+          </div>
+          <h2 class="confirm-dialog__title" id="confirmDialogTitle"></h2>
+          <p class="confirm-dialog__text" id="confirmDialogText"></p>
+        </div>
+        <div class="confirm-dialog__actions">
+          <button type="button" class="btn btn--outline" data-confirm-cancel></button>
+          <button type="button" class="btn ${danger ? 'btn--danger' : 'btn--primary'}" data-confirm-ok></button>
+        </div>
+      `;
+
+      dialog.querySelector('.confirm-dialog__title').textContent = title;
+      dialog.querySelector('.confirm-dialog__text').textContent = message;
+      dialog.querySelector('[data-confirm-cancel]').textContent = cancelText;
+      dialog.querySelector('[data-confirm-ok]').textContent = confirmText;
+
+      const finish = value => {
+        if (dialog.open) dialog.close(value);
+      };
+
+      dialog.querySelector('[data-confirm-cancel]').addEventListener('click', () => finish('cancel'));
+      dialog.querySelector('[data-confirm-ok]').addEventListener('click', () => finish('confirm'));
+      dialog.addEventListener('click', event => {
+        // Clic en el fondo (el target es el propio <dialog>).
+        if (event.target === dialog) finish('cancel');
+      });
+      dialog.addEventListener('cancel', event => {
+        event.preventDefault();
+        finish('cancel');
+      });
+      dialog.addEventListener('close', () => {
+        const accepted = dialog.returnValue === 'confirm';
+        dialog.remove();
+        if (confirmEl === dialog) confirmEl = null;
+        resolve(accepted);
+      });
+
+      document.body.appendChild(dialog);
+      confirmEl = dialog;
+
+      try {
+        dialog.showModal();
+      } catch (err) {
+        // Navegador sin <dialog> modal: se mantiene la confirmación nativa.
+        dialog.remove();
+        confirmEl = null;
+        resolve(window.confirm(`${title}\n\n${message}`));
+        return;
+      }
+
+      // En acciones destructivas el foco arranca en Cancelar.
+      const focusTarget = danger
+        ? dialog.querySelector('[data-confirm-cancel]')
+        : dialog.querySelector('[data-confirm-ok]');
+      focusTarget.focus();
+    });
+  }
+
   return {
     show,
     error: (message, opts = {}) => show(message, { ...opts, type: 'error', timeout: opts.timeout ?? 8000 }),
     success: (message, opts = {}) => show(message, { ...opts, type: 'success' }),
     info: (message, opts = {}) => show(message, { ...opts, type: 'info' }),
-    state
+    state,
+    confirm: confirmAction
   };
 })();
 
